@@ -1,0 +1,17 @@
+---
+BasedOnStyle: Google
+AccessModifierOffset: "-2"
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 2
+AllowAllParametersOfDeclarationOnNextLine: "false"
+AlwaysBreakTemplateDeclarations: "true"
+BreakBeforeBraces: Allman
+ColumnLimit: "100"
+PackConstructorInitializers: NextLine
+IncludeBlocks: Regroup
+IndentPPDirectives: BeforeHash
+IndentWidth: "4"
+NamespaceIndentation: None
+BreakBeforeBinaryOperators: All
+BreakBeforeTernaryOperators: "true"
