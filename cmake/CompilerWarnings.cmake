@@ -24,7 +24,6 @@ function(set_project_warnings project_name)
       -Wdouble-promotion # warn if float is implicit promoted to double
       -Wformat=2 # warn on security issues around functions that format output
                  # (ie printf)
-      -Weverything # kitchen sink kek
   )
 
   if (${PROJECT_NAME}_WARNINGS_AS_ERRORS)
@@ -41,7 +40,6 @@ function(set_project_warnings project_name)
       -Wlogical-op   # warn about logical operations being used where bitwise were
                      # probably wanted
       -Wuseless-cast # warn if you perform a cast to the same type
-      -Wnoeffc++ # too noisy
   )
 
   if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
@@ -51,6 +49,8 @@ function(set_project_warnings project_name)
   else()
     message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
   endif()
+
+  target_compile_options(${PROJECT_NAME} PUBLIC ${PROJECT_WARNINGS})
 
   if(NOT TARGET ${PROJECT_NAME})
     message(AUTHOR_WARNING "${PROJECT_NAME} is not a target, thus no compiler warning were added.")

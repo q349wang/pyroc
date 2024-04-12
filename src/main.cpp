@@ -1,8 +1,13 @@
 #include <iostream>
 
+#include "util/allocators.h"
+
+#include "window/window.h"
+
 int main(void)
 {
-    std::cout << "Hello World" << std::endl;
+    pyroc::Window window;
+    window.init();
 
     return 0;
 }

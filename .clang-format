@@ -9,7 +9,7 @@ AlwaysBreakTemplateDeclarations: "true"
 BreakBeforeBraces: Allman
 ColumnLimit: "100"
 PackConstructorInitializers: NextLine
-IncludeBlocks: Regroup
+IncludeBlocks: Preserve
 IndentPPDirectives: BeforeHash
 IndentWidth: "4"
 NamespaceIndentation: None
