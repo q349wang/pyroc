@@ -9,5 +9,8 @@ int main(void)
     pyroc::Window window;
     window.init();
 
+    window.loop();
+
+    window.cleanup();
     return 0;
 }

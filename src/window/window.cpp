@@ -1,8 +1,6 @@
 #include "window/window.h"
 
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#define VULKAN_HPP_NO_EXCEPTIONS
-#include <vulkan/vulkan.hpp>
+#include "backend/vulkan/api.h"
 
 #include <GLFW/glfw3.h>
 
@@ -10,30 +8,43 @@
 
 namespace pyroc
 {
+
 void Window::init()
 {
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
+    mWindow = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
 
-    uint32_t extensionCount = 0;
-    const vk::Result res
-        = vk::enumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
+    mBackend = new backend::vulkan::VulkanBackend();
+    vk::Result res = mBackend->init();
     if (res != vk::Result::eSuccess)
     {
         abort();
     }
+}
 
-    std::cout << extensionCount << " extensions supported\n";
-
-    while (!glfwWindowShouldClose(window))
+void Window::loop()
+{
+    while (!glfwWindowShouldClose(mWindow))
     {
         glfwPollEvents();
     }
+}
 
-    glfwDestroyWindow(window);
+void Window::cleanup()
+{
+    if (mBackend)
+    {
+        delete mBackend;
+    }
+    mBackend = nullptr;
+
+    if (mWindow)
+    {
+        glfwDestroyWindow(mWindow);
+    }
+    mWindow = nullptr;
 
     glfwTerminate();
 }
