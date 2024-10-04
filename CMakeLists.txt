@@ -37,6 +37,8 @@ target_compile_options(${PROJECT_NAME} PUBLIC -fno-exceptions)
 target_compile_options(${PROJECT_NAME} PUBLIC -fno-unwind-tables)
 target_compile_options(${PROJECT_NAME} PUBLIC -fno-rtti)
 
+target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
+
 include(cmake/CompilerWarnings.cmake)
 set_project_warnings(${PROJECT_NAME})
 
