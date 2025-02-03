@@ -2,8 +2,6 @@
 
 #include "backend/vulkan/api.h"
 
-#include <GLFW/glfw3.h>
-
 #include <iostream>
 
 namespace pyroc
@@ -17,7 +15,7 @@ void Window::init()
     mWindow = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
 
     mBackend = new backend::vulkan::VulkanBackend();
-    vk::Result res = mBackend->init();
+    vk::Result res = mBackend->init(mWindow);
     if (res != vk::Result::eSuccess)
     {
         abort();
