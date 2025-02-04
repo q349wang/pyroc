@@ -22,14 +22,6 @@ void Window::init()
     }
 }
 
-void Window::loop()
-{
-    while (!glfwWindowShouldClose(mWindow))
-    {
-        glfwPollEvents();
-    }
-}
-
 void Window::cleanup()
 {
     if (mBackend)

@@ -33,6 +33,20 @@ class VulkanBackend
 
     void destroy();
 
+    vk::Device device() { return mDevice; }
+
+    uint32_t graphicsQueueIdx() { return mQueueFamilyIndices.graphics; }
+
+    vk::Queue graphicsQueue() { return mGraphicsQueue; }
+    vk::Queue presentQueue() { return mPresentQueue; }
+
+    vk::SwapchainKHR swapchain() { return mSwapchain; }
+    vk::Format swapchainFormat() { return mSwapchainFormat; }
+
+    vk::Extent2D swapchainExtent() { return mSwapchainExtent; }
+
+    std::vector<vk::ImageView> swapchainImageViews() { return mSwapchainImageViews; }
+
   private:
     vk::Instance mInstance;
 
@@ -49,6 +63,8 @@ class VulkanBackend
     vk::Format mSwapchainFormat;
     vk::Extent2D mSwapchainExtent;
     std::vector<vk::Image> mSwapchainImages;
+
+    std::vector<vk::ImageView> mSwapchainImageViews;
 };
 
 }  // namespace pyroc::backend::vulkan

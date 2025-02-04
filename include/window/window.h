@@ -14,8 +14,10 @@ class Window
 {
   public:
     void init();
-    void loop();
     void cleanup();
+
+    GLFWwindow* window() { return mWindow; }
+    backend::vulkan::VulkanBackend* backend() { return mBackend; }
 
   private:
     GLFWwindow* mWindow = nullptr;

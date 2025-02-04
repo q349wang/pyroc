@@ -1,4 +1,4 @@
-#include "api.h"
+#include "backend\vulkan\api.h"
 
 #include "util/bitmanip.h"
 
@@ -444,11 +444,48 @@ vk::Result VulkanBackend::init(GLFWwindow* window)
         mSwapchainImages = swapchainImages;
     }
 
+    {
+        mSwapchainImageViews.resize(mSwapchainImages.size());
+        for (uint32_t i = 0; i < mSwapchainImages.size(); i++)
+        {
+            vk::ImageViewCreateInfo createInfo = {
+                .image = mSwapchainImages[i],
+                .viewType = vk::ImageViewType::e2D,
+                .format = mSwapchainFormat,
+                .components = {
+                    .r = vk::ComponentSwizzle::eIdentity,
+                    .g = vk::ComponentSwizzle::eIdentity,
+                    .b = vk::ComponentSwizzle::eIdentity,
+                    .a = vk::ComponentSwizzle::eIdentity,
+                },
+                .subresourceRange = {
+                    .aspectMask = vk::ImageAspectFlagBits::eColor,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
+
+            const auto [res, image] = mDevice.createImageView(createInfo);
+            if (res != vk::Result::eSuccess)
+            {
+                return res;
+            }
+
+            mSwapchainImageViews[i] = image;
+        }
+    }
+
     return vk::Result::eSuccess;
 }
 
 void VulkanBackend::destroy()
 {
+    for (auto imageView : mSwapchainImageViews)
+    {
+        mDevice.destroyImageView(imageView);
+    }
     mDevice.destroySwapchainKHR(mSwapchain);
     mDevice.destroy();
     mInstance.destroySurfaceKHR(mSurface);
