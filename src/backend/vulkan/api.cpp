@@ -268,6 +268,123 @@ vk::Extent2D chooseSwapchainExtent(GLFWwindow* window, const VulkanBackend::Swap
 
 }  // namespace
 
+vk::Result VulkanBackend::recreateSwapchain(GLFWwindow* window)
+{
+    const auto res = mDevice.waitIdle();
+    if (res != vk::Result::eSuccess)
+    {
+        return res;
+    }
+
+    destroySwapchain();
+
+    return createSwapchain(window);
+}
+
+vk::Result VulkanBackend::createSwapchain(GLFWwindow* window)
+{
+    {
+        const SwapchainInfo info = querySwapchainInfo(mPhysicalDevice, mSurface);
+
+        const vk::SurfaceFormatKHR format = chooseSwapchainFormat(info);
+        const vk::PresentModeKHR presentMode = chooseSwapchainPresentMode(info);
+        const vk::Extent2D extent = chooseSwapchainExtent(window, info);
+
+        uint32_t imageCount = info.capabilities.minImageCount + 1;
+
+        if (info.capabilities.maxImageCount > 0 && imageCount > info.capabilities.maxImageCount)
+        {
+            imageCount = info.capabilities.maxImageCount;
+        }
+
+        const bool exclusiveQueue = mQueueFamilyIndices.graphics == mQueueFamilyIndices.present;
+        const uint32_t queueFamilyIndices[]
+            = {mQueueFamilyIndices.graphics, mQueueFamilyIndices.present};
+        const vk::SwapchainCreateInfoKHR createInfo = {
+            .surface = mSurface,
+            .minImageCount = imageCount,
+            .imageFormat = format.format,
+            .imageColorSpace = format.colorSpace,
+            .imageExtent = extent,
+            .imageArrayLayers = 1,
+            .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+            .imageSharingMode
+            = exclusiveQueue ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent,
+            .queueFamilyIndexCount = exclusiveQueue ? 0u : 2u,
+            .pQueueFamilyIndices = exclusiveQueue ? nullptr : queueFamilyIndices,
+            .preTransform = info.capabilities.currentTransform,
+            .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+            .presentMode = presentMode,
+            .clipped = vk::True,
+            .oldSwapchain = nullptr,
+        };
+
+        const auto [res, swapchain] = mDevice.createSwapchainKHR(createInfo);
+        if (res != vk::Result::eSuccess)
+        {
+            return res;
+        }
+
+        mSwapchain = swapchain;
+        mSwapchainFormat = format.format;
+        mSwapchainExtent = extent;
+    }
+
+    {
+        const auto [res, swapchainImages] = mDevice.getSwapchainImagesKHR(mSwapchain);
+        if (res != vk::Result::eSuccess)
+        {
+            return res;
+        }
+
+        mSwapchainImages = swapchainImages;
+    }
+
+    {
+        mSwapchainImageViews.resize(mSwapchainImages.size());
+        for (uint32_t i = 0; i < mSwapchainImages.size(); i++)
+        {
+            vk::ImageViewCreateInfo createInfo = {
+                .image = mSwapchainImages[i],
+                .viewType = vk::ImageViewType::e2D,
+                .format = mSwapchainFormat,
+                .components = {
+                    .r = vk::ComponentSwizzle::eIdentity,
+                    .g = vk::ComponentSwizzle::eIdentity,
+                    .b = vk::ComponentSwizzle::eIdentity,
+                    .a = vk::ComponentSwizzle::eIdentity,
+                },
+                .subresourceRange = {
+                    .aspectMask = vk::ImageAspectFlagBits::eColor,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
+
+            const auto [res, image] = mDevice.createImageView(createInfo);
+            if (res != vk::Result::eSuccess)
+            {
+                return res;
+            }
+
+            mSwapchainImageViews[i] = image;
+        }
+    }
+
+    return vk::Result::eSuccess;
+}
+
+void VulkanBackend::destroySwapchain()
+{
+    for (auto imageView : mSwapchainImageViews)
+    {
+        mDevice.destroyImageView(imageView);
+    }
+    mDevice.destroySwapchainKHR(mSwapchain);
+}
+
 vk::Result VulkanBackend::init(GLFWwindow* window)
 {
     const vk::ApplicationInfo appInfo{
@@ -388,92 +505,10 @@ vk::Result VulkanBackend::init(GLFWwindow* window)
     }
 
     {
-        const SwapchainInfo info = querySwapchainInfo(mPhysicalDevice, mSurface);
-
-        const vk::SurfaceFormatKHR format = chooseSwapchainFormat(info);
-        const vk::PresentModeKHR presentMode = chooseSwapchainPresentMode(info);
-        const vk::Extent2D extent = chooseSwapchainExtent(window, info);
-
-        uint32_t imageCount = info.capabilities.minImageCount + 1;
-
-        if (info.capabilities.maxImageCount > 0 && imageCount > info.capabilities.maxImageCount)
-        {
-            imageCount = info.capabilities.maxImageCount;
-        }
-
-        const bool exclusiveQueue = mQueueFamilyIndices.graphics == mQueueFamilyIndices.present;
-        const uint32_t queueFamilyIndices[]
-            = {mQueueFamilyIndices.graphics, mQueueFamilyIndices.present};
-        const vk::SwapchainCreateInfoKHR createInfo = {
-            .surface = mSurface,
-            .minImageCount = imageCount,
-            .imageFormat = format.format,
-            .imageColorSpace = format.colorSpace,
-            .imageExtent = extent,
-            .imageArrayLayers = 1,
-            .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
-            .imageSharingMode
-            = exclusiveQueue ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent,
-            .queueFamilyIndexCount = exclusiveQueue ? 0u : 2u,
-            .pQueueFamilyIndices = exclusiveQueue ? nullptr : queueFamilyIndices,
-            .preTransform = info.capabilities.currentTransform,
-            .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-            .presentMode = presentMode,
-            .clipped = vk::True,
-            .oldSwapchain = nullptr,
-        };
-
-        const auto [res, swapchain] = mDevice.createSwapchainKHR(createInfo);
+        const auto res = createSwapchain(window);
         if (res != vk::Result::eSuccess)
         {
             return res;
-        }
-
-        mSwapchain = swapchain;
-        mSwapchainFormat = format.format;
-        mSwapchainExtent = extent;
-    }
-
-    {
-        const auto [res, swapchainImages] = mDevice.getSwapchainImagesKHR(mSwapchain);
-        if (res != vk::Result::eSuccess)
-        {
-            return res;
-        }
-
-        mSwapchainImages = swapchainImages;
-    }
-
-    {
-        mSwapchainImageViews.resize(mSwapchainImages.size());
-        for (uint32_t i = 0; i < mSwapchainImages.size(); i++)
-        {
-            vk::ImageViewCreateInfo createInfo = {
-                .image = mSwapchainImages[i],
-                .viewType = vk::ImageViewType::e2D,
-                .format = mSwapchainFormat,
-                .components = {
-                    .r = vk::ComponentSwizzle::eIdentity,
-                    .g = vk::ComponentSwizzle::eIdentity,
-                    .b = vk::ComponentSwizzle::eIdentity,
-                    .a = vk::ComponentSwizzle::eIdentity,
-                },
-                .subresourceRange = {
-                    .aspectMask = vk::ImageAspectFlagBits::eColor,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                },
-            };
-
-            const auto [res, image] = mDevice.createImageView(createInfo);
-            if (res != vk::Result::eSuccess)
-            {
-                return res;
-            }
-
-            mSwapchainImageViews[i] = image;
         }
     }
 
@@ -482,11 +517,8 @@ vk::Result VulkanBackend::init(GLFWwindow* window)
 
 void VulkanBackend::destroy()
 {
-    for (auto imageView : mSwapchainImageViews)
-    {
-        mDevice.destroyImageView(imageView);
-    }
-    mDevice.destroySwapchainKHR(mSwapchain);
+    destroySwapchain();
+
     mDevice.destroy();
     mInstance.destroySurfaceKHR(mSurface);
     mInstance.destroy();

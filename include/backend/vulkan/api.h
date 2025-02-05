@@ -31,6 +31,8 @@ class VulkanBackend
 
     vk::Result init(GLFWwindow* window);
 
+    vk::Result recreateSwapchain(GLFWwindow* window);
+
     void destroy();
 
     vk::Device device() { return mDevice; }
@@ -48,6 +50,9 @@ class VulkanBackend
     std::vector<vk::ImageView> swapchainImageViews() { return mSwapchainImageViews; }
 
   private:
+    vk::Result createSwapchain(GLFWwindow* window);
+    void destroySwapchain();
+
     vk::Instance mInstance;
 
     vk::SurfaceKHR mSurface;
