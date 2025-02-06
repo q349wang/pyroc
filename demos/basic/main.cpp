@@ -1,11 +1,17 @@
 #include <iostream>
 
+#include "shaders/basic.h"
+
 #include "backend/vulkan/api.h"
 #include "backend/vulkan/shader.h"
+
+#include "math/math.h"
 
 #include "window/window.h"
 
 using namespace pyroc::backend::vulkan;
+
+using namespace pyroc::math;
 
 namespace
 {
@@ -17,6 +23,12 @@ struct RenderCommand
     vk::Semaphore imageAvailableSemaphore;
     vk::Semaphore renderFinishedSemaphore;
     vk::Fence inFlightFence;
+};
+
+struct Vertex
+{
+    vec2 pos;
+    vec3 colour;
 };
 
 class App
@@ -111,11 +123,29 @@ class App
             = {.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
                .pDynamicStates = dynamicStates.data()};
 
+        const vk::VertexInputBindingDescription vertexBindingDescription = {
+            .binding = IN_BINDING_VERTEX,
+            .stride = sizeof(Vertex),
+            .inputRate = vk::VertexInputRate::eVertex,
+        };
+
+        const vk::VertexInputAttributeDescription attributeDescriptions[2]
+            = {{
+                   .location = IN_VERTEX_POSITION,
+                   .binding = IN_BINDING_VERTEX,
+                   .format = vk::Format::eR32G32Sfloat,
+                   .offset = offsetof(Vertex, pos),
+               },
+               {.location = IN_VERTEX_COLOUR,
+                .binding = IN_BINDING_VERTEX,
+                .format = vk::Format::eR32G32B32Sfloat,
+                .offset = offsetof(Vertex, colour)}};
+
         const vk::PipelineVertexInputStateCreateInfo vertexInputInfo = {
-            .vertexBindingDescriptionCount = 0,
-            .pVertexBindingDescriptions = nullptr,
-            .vertexAttributeDescriptionCount = 0,
-            .pVertexAttributeDescriptions = nullptr,
+            .vertexBindingDescriptionCount = 1,
+            .pVertexBindingDescriptions = &vertexBindingDescription,
+            .vertexAttributeDescriptionCount = 2,
+            .pVertexAttributeDescriptions = attributeDescriptions,
         };
 
         const vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {

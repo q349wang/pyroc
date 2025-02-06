@@ -28,6 +28,8 @@ function(compile_shader target)
         string(REPLACE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} output ${source}.${arg_FORMAT})
         string(REPLACE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} deps ${source}.d)
 
+        get_filename_component(source_directory ${source} DIRECTORY)
+
         add_custom_command(
             OUTPUT ${output}
             DEPENDS ${source}
@@ -38,6 +40,7 @@ function(compile_shader target)
                 $<$<BOOL:${arg_ENV}>:--target-env=${arg_ENV}>
                 $<$<BOOL:${arg_FORMAT}>:-mfmt=${arg_FORMAT}>
                 -MD -MF ${deps}
+                -I ${source_directory}
                 -o ${output}
                 ${source}
         )
@@ -65,6 +68,7 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 target_compile_options(${PROJECT_NAME} PUBLIC -fno-exceptions)
 target_compile_options(${PROJECT_NAME} PUBLIC -fno-unwind-tables)
 target_compile_options(${PROJECT_NAME} PUBLIC -fno-rtti)
+target_compile_options(${PROJECT_NAME} PUBLIC -fms-extensions)
 
 include(cmake/CompilerWarnings.cmake)
 set_project_warnings(${PROJECT_NAME})
