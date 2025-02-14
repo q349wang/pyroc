@@ -7,7 +7,7 @@ namespace pyroc
 
 namespace backend::vulkan
 {
-class VulkanBackend;
+class Context;
 
 }
 class Window
@@ -17,10 +17,10 @@ class Window
     void cleanup();
 
     GLFWwindow* window() { return mWindow; }
-    backend::vulkan::VulkanBackend* backend() { return mBackend; }
+    backend::vulkan::Context* ctx() { return mContext; }
 
   private:
     GLFWwindow* mWindow = nullptr;
-    backend::vulkan::VulkanBackend* mBackend = nullptr;
+    backend::vulkan::Context* mContext = nullptr;
 };
 }  // namespace pyroc

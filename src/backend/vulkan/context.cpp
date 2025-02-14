@@ -1,4 +1,5 @@
-#include "backend\vulkan\api.h"
+#include "backend/vulkan/context.h"
+#include "backend/vulkan/api.h"
 
 #include "util/bitmanip.h"
 
@@ -101,10 +102,9 @@ uint32_t findBestQueue(vk::QueueFlags desiredFlags,
     return targetIndex;
 }
 
-VulkanBackend::QueueFamilyIndices findQueueFamiles(vk::PhysicalDevice device,
-                                                   vk::SurfaceKHR surface)
+Context::QueueFamilyIndices findQueueFamiles(vk::PhysicalDevice device, vk::SurfaceKHR surface)
 {
-    VulkanBackend::QueueFamilyIndices indices;
+    Context::QueueFamilyIndices indices;
     const auto queueFamilies = device.getQueueFamilyProperties();
 
     indices.graphics = findBestQueue(vk::QueueFlagBits::eGraphics, queueFamilies);
@@ -158,9 +158,9 @@ bool checkDeviceExtensionSupport(vk::PhysicalDevice device)
     return true;
 }
 
-VulkanBackend::SwapchainInfo querySwapchainInfo(vk::PhysicalDevice device, vk::SurfaceKHR surface)
+Context::SwapchainInfo querySwapchainInfo(vk::PhysicalDevice device, vk::SurfaceKHR surface)
 {
-    VulkanBackend::SwapchainInfo info;
+    Context::SwapchainInfo info;
 
     {
         const auto [res, capabilities] = device.getSurfaceCapabilitiesKHR(surface);
@@ -216,7 +216,7 @@ bool isDeviceSuitable(vk::PhysicalDevice device, vk::SurfaceKHR surface)
     return true;
 }
 
-vk::SurfaceFormatKHR chooseSwapchainFormat(const VulkanBackend::SwapchainInfo& info)
+vk::SurfaceFormatKHR chooseSwapchainFormat(const Context::SwapchainInfo& info)
 {
     for (const auto& format : info.formats)
     {
@@ -230,7 +230,7 @@ vk::SurfaceFormatKHR chooseSwapchainFormat(const VulkanBackend::SwapchainInfo& i
     return info.formats[0];
 }
 
-vk::PresentModeKHR chooseSwapchainPresentMode(const VulkanBackend::SwapchainInfo& info)
+vk::PresentModeKHR chooseSwapchainPresentMode(const Context::SwapchainInfo& info)
 {
     for (const auto& presentMode : info.presentModes)
     {
@@ -243,7 +243,7 @@ vk::PresentModeKHR chooseSwapchainPresentMode(const VulkanBackend::SwapchainInfo
     return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D chooseSwapchainExtent(GLFWwindow* window, const VulkanBackend::SwapchainInfo& info)
+vk::Extent2D chooseSwapchainExtent(GLFWwindow* window, const Context::SwapchainInfo& info)
 {
     if (info.capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
     {
@@ -268,7 +268,7 @@ vk::Extent2D chooseSwapchainExtent(GLFWwindow* window, const VulkanBackend::Swap
 
 }  // namespace
 
-vk::Result VulkanBackend::recreateSwapchain(GLFWwindow* window)
+vk::Result Context::recreateSwapchain(GLFWwindow* window)
 {
     const auto res = mDevice.waitIdle();
     if (res != vk::Result::eSuccess)
@@ -281,7 +281,7 @@ vk::Result VulkanBackend::recreateSwapchain(GLFWwindow* window)
     return createSwapchain(window);
 }
 
-vk::Result VulkanBackend::createSwapchain(GLFWwindow* window)
+vk::Result Context::createSwapchain(GLFWwindow* window)
 {
     {
         const SwapchainInfo info = querySwapchainInfo(mPhysicalDevice, mSurface);
@@ -315,7 +315,7 @@ vk::Result VulkanBackend::createSwapchain(GLFWwindow* window)
             .preTransform = info.capabilities.currentTransform,
             .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
             .presentMode = presentMode,
-            .clipped = vk::True,
+            .clipped = VK_TRUE,
             .oldSwapchain = nullptr,
         };
 
@@ -376,7 +376,7 @@ vk::Result VulkanBackend::createSwapchain(GLFWwindow* window)
     return vk::Result::eSuccess;
 }
 
-void VulkanBackend::destroySwapchain()
+void Context::destroySwapchain()
 {
     for (auto imageView : mSwapchainImageViews)
     {
@@ -385,7 +385,7 @@ void VulkanBackend::destroySwapchain()
     mDevice.destroySwapchainKHR(mSwapchain);
 }
 
-vk::Result VulkanBackend::init(GLFWwindow* window)
+vk::Result Context::init(GLFWwindow* window)
 {
     const vk::ApplicationInfo appInfo{
         .pApplicationName = "PyroC Backend",
@@ -515,7 +515,7 @@ vk::Result VulkanBackend::init(GLFWwindow* window)
     return vk::Result::eSuccess;
 }
 
-void VulkanBackend::destroy()
+void Context::destroy()
 {
     destroySwapchain();
 

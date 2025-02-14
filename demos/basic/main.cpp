@@ -2,12 +2,7 @@
 
 #include "shaders/basic.h"
 
-#include "backend/vulkan/api.h"
-#include "backend/vulkan/shader.h"
-
-#include "math/math.h"
-
-#include "window/window.h"
+#include "pyroc.h"
 
 using namespace pyroc::backend::vulkan;
 
@@ -36,7 +31,7 @@ class App
   public:
     vk::Result createFramebuffers()
     {
-        const auto swapchainImageViews = mWindow->backend()->swapchainImageViews();
+        const auto swapchainImageViews = mWindow->ctx()->swapchainImageViews();
         mFramebuffers.resize(swapchainImageViews.size());
         for (uint32_t i = 0; i < swapchainImageViews.size(); ++i)
         {
@@ -48,8 +43,8 @@ class App
                 .renderPass = mRenderPass,
                 .attachmentCount = 1,
                 .pAttachments = attachments,
-                .width = mWindow->backend()->swapchainExtent().width,
-                .height = mWindow->backend()->swapchainExtent().height,
+                .width = mWindow->ctx()->swapchainExtent().width,
+                .height = mWindow->ctx()->swapchainExtent().height,
                 .layers = 1,
             };
 
@@ -83,7 +78,7 @@ class App
 
         destroyFramebuffers();
 
-        mWindow->backend()->recreateSwapchain(mWindow->window());
+        mWindow->ctx()->recreateSwapchain(mWindow->window());
 
         res = createFramebuffers();
         if (res != vk::Result::eSuccess)
@@ -198,7 +193,7 @@ class App
         }
 
         const vk::AttachmentDescription colorAttachment = {
-            .format = window->backend()->swapchainFormat(),
+            .format = window->ctx()->swapchainFormat(),
             .samples = vk::SampleCountFlagBits::e1,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eStore,
@@ -282,7 +277,7 @@ class App
         {
             const vk::CommandPoolCreateInfo poolInfo = {
                 .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-                .queueFamilyIndex = window->backend()->graphicsQueueIdx(),
+                .queueFamilyIndex = window->ctx()->graphicsQueueIdx(),
             };
 
             const auto [res, handle] = device.createCommandPool(poolInfo);
@@ -347,11 +342,42 @@ class App
             mRenderCommands[i].inFlightFence = handle;
         }
 
+        {
+            Vertex verts[3] = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                               {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                               {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+            {
+                const auto res = createBuffer(mWindow->ctx(), sizeof(verts),
+                                              vk::BufferUsageFlagBits::eVertexBuffer,
+                                              vk::MemoryPropertyFlagBits::eHostVisible
+                                                  | vk::MemoryPropertyFlagBits::eHostCoherent,
+                                              mVertexBuffer);
+                if (res != vk::Result::eSuccess)
+                {
+                    return res;
+                }
+            }
+
+            {
+                const auto [res, data] = mDevice.mapMemory(mVertexBuffer.memory, 0, sizeof(verts));
+
+                if (res != vk::Result::eSuccess)
+                {
+                    return res;
+                }
+
+                memcpy(data, verts, sizeof(verts));
+
+                mDevice.unmapMemory(mVertexBuffer.memory);
+            }
+        }
+
         return vk::Result::eSuccess;
     }
 
     void destroy()
     {
+        destroyBuffer(mWindow->ctx(), mVertexBuffer);
         for (auto cmd : mRenderCommands)
         {
             mDevice.destroyFence(cmd.inFlightFence);
@@ -388,7 +414,7 @@ class App
         uint32_t imageIndex;
         {
             auto res = mDevice.acquireNextImageKHR(
-                mWindow->backend()->swapchain(), std::numeric_limits<uint64_t>::max(),
+                mWindow->ctx()->swapchain(), std::numeric_limits<uint64_t>::max(),
                 renderCommand.imageAvailableSemaphore, nullptr, &imageIndex);
             switch (res)
             {
@@ -438,7 +464,7 @@ class App
                 .framebuffer = mFramebuffers[imageIndex],
                 .renderArea = {
                     .offset = {0, 0},
-                    .extent = mWindow->backend()->swapchainExtent(),
+                    .extent = mWindow->ctx()->swapchainExtent(),
                 },
                 .clearValueCount = 1,
                 .pClearValues = &clearValue,
@@ -448,11 +474,15 @@ class App
 
             commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
 
+            vk::Buffer vertexBuffers[] = {mVertexBuffer.buffer};
+            vk::DeviceSize offsets[] = {0};
+            commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+
             const vk::Viewport viewport = {
                 .x = 0.0f,
                 .y = 0.0f,
-                .width = static_cast<float>(mWindow->backend()->swapchainExtent().width),
-                .height = static_cast<float>(mWindow->backend()->swapchainExtent().height),
+                .width = static_cast<float>(mWindow->ctx()->swapchainExtent().width),
+                .height = static_cast<float>(mWindow->ctx()->swapchainExtent().height),
                 .minDepth = 0.0f,
                 .maxDepth = 1.0f,
             };
@@ -461,7 +491,7 @@ class App
 
             const vk::Rect2D scissor{
                 .offset = {0, 0},
-                .extent = mWindow->backend()->swapchainExtent(),
+                .extent = mWindow->ctx()->swapchainExtent(),
             };
 
             commandBuffer.setScissor(0, 1, &scissor);
@@ -495,7 +525,7 @@ class App
                 .pSignalSemaphores = signalSemaphores,
             };
 
-            vk::Queue graphicsQueue = mWindow->backend()->graphicsQueue();
+            vk::Queue graphicsQueue = mWindow->ctx()->graphicsQueue();
 
             const auto res = graphicsQueue.submit(submitInfo, renderCommand.inFlightFence);
             if (res != vk::Result::eSuccess)
@@ -507,7 +537,7 @@ class App
         {
             const vk::Semaphore waitSemaphores[] = {renderCommand.renderFinishedSemaphore};
 
-            const vk::SwapchainKHR swapchains[] = {mWindow->backend()->swapchain()};
+            const vk::SwapchainKHR swapchains[] = {mWindow->ctx()->swapchain()};
             const vk::PresentInfoKHR presentInfo = {
                 .waitSemaphoreCount = 1,
                 .pWaitSemaphores = waitSemaphores,
@@ -516,7 +546,7 @@ class App
                 .pImageIndices = &imageIndex,
             };
 
-            vk::Queue presentQueue = mWindow->backend()->presentQueue();
+            vk::Queue presentQueue = mWindow->ctx()->presentQueue();
 
             const auto res = presentQueue.presentKHR(presentInfo);
             switch (res)
@@ -557,6 +587,8 @@ class App
     std::vector<vk::Framebuffer> mFramebuffers;
 
     std::vector<RenderCommand> mRenderCommands;
+
+    Buffer mVertexBuffer;
 };
 
 }  // namespace
@@ -565,7 +597,7 @@ int main(void)
 {
     pyroc::Window window;
     window.init();
-    vk::Device device = window.backend()->device();
+    vk::Device device = window.ctx()->device();
 
     App app;
     {

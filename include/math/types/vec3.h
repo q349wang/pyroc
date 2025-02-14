@@ -11,6 +11,7 @@ union vec<3, T>
     {
         T x;
         T y;
+        T z;
     };
     typename detail::storage<3, T>::type data;
 

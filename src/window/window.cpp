@@ -1,6 +1,6 @@
 #include "window/window.h"
 
-#include "backend/vulkan/api.h"
+#include "backend/vulkan/context.h"
 
 #include <iostream>
 
@@ -14,8 +14,8 @@ void Window::init()
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     mWindow = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
 
-    mBackend = new backend::vulkan::VulkanBackend();
-    vk::Result res = mBackend->init(mWindow);
+    mContext = new backend::vulkan::Context();
+    vk::Result res = mContext->init(mWindow);
     if (res != vk::Result::eSuccess)
     {
         abort();
@@ -24,11 +24,11 @@ void Window::init()
 
 void Window::cleanup()
 {
-    if (mBackend)
+    if (mContext)
     {
-        delete mBackend;
+        delete mContext;
     }
-    mBackend = nullptr;
+    mContext = nullptr;
 
     if (mWindow)
     {
