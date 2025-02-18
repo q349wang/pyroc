@@ -289,6 +289,26 @@ class App
             mCommandPool = handle;
         }
 
+        mUpdateCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+        {
+            const vk::CommandBufferAllocateInfo allocInfo = {
+                .commandPool = mCommandPool,
+                .level = vk::CommandBufferLevel::ePrimary,
+                .commandBufferCount = static_cast<uint32_t>(mUpdateCommandBuffers.size()),
+            };
+
+            const auto [res, handle] = device.allocateCommandBuffers(allocInfo);
+            if (res != vk::Result::eSuccess)
+            {
+                return res;
+            }
+
+            for (size_t i = 0; i < mUpdateCommandBuffers.size(); ++i)
+            {
+                mUpdateCommandBuffers[i] = handle[i];
+            }
+        }
+
         mRenderCommands.resize(MAX_FRAMES_IN_FLIGHT);
         {
             const vk::CommandBufferAllocateInfo allocInfo = {
@@ -343,15 +363,18 @@ class App
         }
 
         {
-            Vertex verts[3] = {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                               {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-                               {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+            Vertex verts[] = {
+                {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+                {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+                {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},
+            };
+
             {
-                const auto res = createBuffer(mWindow->ctx(), sizeof(verts),
-                                              vk::BufferUsageFlagBits::eVertexBuffer,
-                                              vk::MemoryPropertyFlagBits::eHostVisible
-                                                  | vk::MemoryPropertyFlagBits::eHostCoherent,
-                                              mVertexBuffer);
+                const auto res = createBuffer(
+                    mWindow->ctx(), sizeof(verts),
+                    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+                    vk::MemoryPropertyFlagBits::eDeviceLocal, mVertexBuffer);
                 if (res != vk::Result::eSuccess)
                 {
                     return res;
@@ -359,16 +382,36 @@ class App
             }
 
             {
-                const auto [res, data] = mDevice.mapMemory(mVertexBuffer.memory, 0, sizeof(verts));
-
+                const auto res = copyBufferBlocking(mWindow->ctx(), mUpdateCommandBuffers[0],
+                                                    sizeof(verts), verts, 0, mVertexBuffer);
                 if (res != vk::Result::eSuccess)
                 {
                     return res;
                 }
+            }
+        }
 
-                memcpy(data, verts, sizeof(verts));
+        {
+            uint16_t indices[] = {0, 1, 2, 2, 3, 0};
 
-                mDevice.unmapMemory(mVertexBuffer.memory);
+            {
+                const auto res = createBuffer(
+                    mWindow->ctx(), sizeof(indices),
+                    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+                    vk::MemoryPropertyFlagBits::eDeviceLocal, mIndexBuffer);
+                if (res != vk::Result::eSuccess)
+                {
+                    return res;
+                }
+            }
+
+            {
+                const auto res = copyBufferBlocking(mWindow->ctx(), mUpdateCommandBuffers[0],
+                                                    sizeof(indices), indices, 0, mIndexBuffer);
+                if (res != vk::Result::eSuccess)
+                {
+                    return res;
+                }
             }
         }
 
@@ -378,6 +421,7 @@ class App
     void destroy()
     {
         destroyBuffer(mWindow->ctx(), mVertexBuffer);
+        destroyBuffer(mWindow->ctx(), mIndexBuffer);
         for (auto cmd : mRenderCommands)
         {
             mDevice.destroyFence(cmd.inFlightFence);
@@ -477,6 +521,7 @@ class App
             vk::Buffer vertexBuffers[] = {mVertexBuffer.buffer};
             vk::DeviceSize offsets[] = {0};
             commandBuffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+            commandBuffer.bindIndexBuffer(mIndexBuffer.buffer, 0, vk::IndexType::eUint16);
 
             const vk::Viewport viewport = {
                 .x = 0.0f,
@@ -496,7 +541,7 @@ class App
 
             commandBuffer.setScissor(0, 1, &scissor);
 
-            commandBuffer.draw(3, 1, 0, 0);
+            commandBuffer.drawIndexed(6, 1, 0, 0, 0);
 
             commandBuffer.endRenderPass();
 
@@ -584,11 +629,14 @@ class App
 
     vk::CommandPool mCommandPool;
 
+    std::vector<vk::CommandBuffer> mUpdateCommandBuffers;
+
     std::vector<vk::Framebuffer> mFramebuffers;
 
     std::vector<RenderCommand> mRenderCommands;
 
     Buffer mVertexBuffer;
+    Buffer mIndexBuffer;
 };
 
 }  // namespace

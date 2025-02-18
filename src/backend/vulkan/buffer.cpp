@@ -72,6 +72,7 @@ vk::Result createBuffer(Context* ctx, vk::DeviceSize size, vk::BufferUsageFlags 
 
     return vk::Result::eErrorUnknown;
 }
+
 void destroyBuffer(Context* ctx, Buffer& buffer)
 {
     ctx->device().freeMemory(buffer.memory);
@@ -79,4 +80,113 @@ void destroyBuffer(Context* ctx, Buffer& buffer)
 
     return;
 }
+
+vk::Result copyBufferBlocking(Context* ctx, vk::CommandBuffer cmdBuf, vk::DeviceSize srcOffset,
+                              Buffer& src, vk::DeviceSize dstOffset, Buffer& dst)
+{
+    vk::Result res;
+
+    res = cmdBuf.reset();
+
+    if (res != vk::Result::eSuccess)
+    {
+        return res;
+    }
+
+    {
+        const vk::CommandBufferBeginInfo beginInfo = {
+            .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+        };
+
+        res = cmdBuf.begin(beginInfo);
+
+        if (res != vk::Result::eSuccess)
+        {
+            return res;
+        }
+    }
+
+    {
+        vk::BufferCopy copyRegion = {
+            .srcOffset = srcOffset,
+            .dstOffset = dstOffset,
+            .size = src.size,
+        };
+
+        cmdBuf.copyBuffer(src.buffer, dst.buffer, copyRegion);
+    }
+
+    {
+        res = cmdBuf.end();
+
+        if (res != vk::Result::eSuccess)
+        {
+            return res;
+        }
+    }
+
+    {
+        const vk::SubmitInfo submitInfo = {
+            .commandBufferCount = 1,
+            .pCommandBuffers = &cmdBuf,
+        };
+
+        res = ctx->graphicsQueue().submit(submitInfo);
+
+        if (res != vk::Result::eSuccess)
+        {
+            return res;
+        }
+    }
+
+    {
+        res = ctx->graphicsQueue().waitIdle();
+
+        if (res != vk::Result::eSuccess)
+        {
+            return res;
+        }
+    }
+
+    return vk::Result::eSuccess;
+}
+
+vk::Result copyBufferBlocking(Context* ctx, vk::CommandBuffer cmdBuf, vk::DeviceSize srcSize,
+                              const void* pSrc, vk::DeviceSize dstOffset, Buffer& dst)
+{
+    vk::Result res;
+
+    Buffer srcBuffer;
+    res = createBuffer(
+        ctx, srcSize, vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+        srcBuffer);
+
+    if (res != vk::Result::eSuccess)
+    {
+        return res;
+    }
+
+    {
+        void* pData;
+        res = ctx->device().mapMemory(srcBuffer.memory, 0, srcSize, {}, &pData);
+
+        if (res != vk::Result::eSuccess)
+        {
+            destroyBuffer(ctx, srcBuffer);
+            return res;
+        }
+
+        std::memcpy(pData, pSrc, srcSize);
+
+        ctx->device().unmapMemory(srcBuffer.memory);
+    }
+
+    res = copyBufferBlocking(ctx, cmdBuf, 0, srcBuffer, dstOffset, dst);
+
+    destroyBuffer(ctx, srcBuffer);
+
+    return res;
+}
+
 }  // namespace pyroc::backend::vulkan
