@@ -4,6 +4,7 @@
 #include "backend/vulkan/buffer.h"
 #include "backend/vulkan/context.h"
 #include "backend/vulkan/shader.h"
+#include "backend/vulkan/surface.h"
 
 #include "math/math.h"
 

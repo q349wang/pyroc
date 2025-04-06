@@ -31,7 +31,7 @@ class App
   public:
     vk::Result createFramebuffers()
     {
-        const auto swapchainImageViews = mWindow->ctx()->swapchainImageViews();
+        const auto swapchainImageViews = mSurface.swapchainImageViews;
         mFramebuffers.resize(swapchainImageViews.size());
         for (uint32_t i = 0; i < swapchainImageViews.size(); ++i)
         {
@@ -43,8 +43,8 @@ class App
                 .renderPass = mRenderPass,
                 .attachmentCount = 1,
                 .pAttachments = attachments,
-                .width = mWindow->ctx()->swapchainExtent().width,
-                .height = mWindow->ctx()->swapchainExtent().height,
+                .width = mSurface.extent.width,
+                .height = mSurface.extent.height,
                 .layers = 1,
             };
 
@@ -78,7 +78,24 @@ class App
 
         destroyFramebuffers();
 
-        mWindow->ctx()->recreateSwapchain(mWindow->window());
+        int32_t width, height;
+        glfwGetFramebufferSize(mWindow->window(), &width, &height);
+
+        if (width == 0 || height == 0)
+        {
+            width = static_cast<int32_t>(mWindow->width());
+            height = static_cast<int32_t>(mWindow->height());
+        }
+
+        const SurfaceCreateInfo recreateInfo = {
+            .surface = nullptr,
+            .extent = vk::Extent2D{
+                .width = static_cast<uint32_t>(width),
+                .height =  static_cast<uint32_t>(height),
+            },
+        };
+
+        recreateSurface(mCtx, &recreateInfo, mSurface);
 
         res = createFramebuffers();
         if (res != vk::Result::eSuccess)
@@ -87,10 +104,27 @@ class App
         }
     }
 
-    vk::Result init(pyroc::Window* window, vk::Device device)
+    vk::Result init(Context* ctx, pyroc::window::Window* window)
     {
+        mCtx = ctx;
         mWindow = window;
-        mDevice = device;
+        mDevice = ctx->device();
+
+        {
+            const SurfaceCreateInfo surfaceCreateInfo = {.surface = mWindow->surface(),
+                                                         .extent = vk::Extent2D{
+                                                             .width = mWindow->width(),
+                                                             .height = mWindow->height(),
+                                                         }};
+
+            const auto res = createSurface(mCtx, &surfaceCreateInfo, mSurface);
+
+            if (res != vk::Result::eSuccess)
+            {
+                std::cerr << "Failed to create surface: " << vk::to_string(res) << std::endl;
+                return res;
+            }
+        }
 
         mVs = createShaderFromFile(mDevice, "demos/basic/shaders/basic.vert.bin");
         mPs = createShaderFromFile(mDevice, "demos/basic/shaders/basic.frag.bin");
@@ -184,7 +218,7 @@ class App
             vk::PipelineLayoutCreateInfo layoutInfo = {
 
             };
-            const auto [res, handle] = device.createPipelineLayout(layoutInfo);
+            const auto [res, handle] = mDevice.createPipelineLayout(layoutInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -193,7 +227,7 @@ class App
         }
 
         const vk::AttachmentDescription colorAttachment = {
-            .format = window->ctx()->swapchainFormat(),
+            .format = mSurface.format,
             .samples = vk::SampleCountFlagBits::e1,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eStore,
@@ -233,7 +267,7 @@ class App
                 .pDependencies = &dependency,
             };
 
-            const auto [res, handle] = device.createRenderPass(renderPassInfo);
+            const auto [res, handle] = mDevice.createRenderPass(renderPassInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -258,7 +292,7 @@ class App
                 .subpass = 0,
             };
 
-            const auto [res, handle] = device.createGraphicsPipeline(nullptr, pipelineInfo);
+            const auto [res, handle] = mDevice.createGraphicsPipeline(nullptr, pipelineInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -277,10 +311,10 @@ class App
         {
             const vk::CommandPoolCreateInfo poolInfo = {
                 .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-                .queueFamilyIndex = window->ctx()->graphicsQueueIdx(),
+                .queueFamilyIndex = mCtx->graphicsQueueIdx(),
             };
 
-            const auto [res, handle] = device.createCommandPool(poolInfo);
+            const auto [res, handle] = mDevice.createCommandPool(poolInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -297,7 +331,7 @@ class App
                 .commandBufferCount = static_cast<uint32_t>(mUpdateCommandBuffers.size()),
             };
 
-            const auto [res, handle] = device.allocateCommandBuffers(allocInfo);
+            const auto [res, handle] = mDevice.allocateCommandBuffers(allocInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -317,7 +351,7 @@ class App
                 .commandBufferCount = static_cast<uint32_t>(mRenderCommands.size()),
             };
 
-            const auto [res, handle] = device.allocateCommandBuffers(allocInfo);
+            const auto [res, handle] = mDevice.allocateCommandBuffers(allocInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -332,7 +366,7 @@ class App
         for (size_t i = 0; i < mRenderCommands.size(); ++i)
         {
             const vk::SemaphoreCreateInfo semaphoreInfo = {};
-            const auto [res, handle] = device.createSemaphore(semaphoreInfo);
+            const auto [res, handle] = mDevice.createSemaphore(semaphoreInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -343,7 +377,7 @@ class App
         for (size_t i = 0; i < mRenderCommands.size(); ++i)
         {
             const vk::SemaphoreCreateInfo semaphoreInfo = {};
-            const auto [res, handle] = device.createSemaphore(semaphoreInfo);
+            const auto [res, handle] = mDevice.createSemaphore(semaphoreInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -354,7 +388,7 @@ class App
         for (size_t i = 0; i < mRenderCommands.size(); ++i)
         {
             const vk::FenceCreateInfo fenceInfo = {.flags = vk::FenceCreateFlagBits::eSignaled};
-            const auto [res, handle] = device.createFence(fenceInfo);
+            const auto [res, handle] = mDevice.createFence(fenceInfo);
             if (res != vk::Result::eSuccess)
             {
                 return res;
@@ -372,7 +406,7 @@ class App
 
             {
                 const auto res = createBuffer(
-                    mWindow->ctx(), sizeof(verts),
+                    mCtx, sizeof(verts),
                     vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
                     vk::MemoryPropertyFlagBits::eDeviceLocal, mVertexBuffer);
                 if (res != vk::Result::eSuccess)
@@ -382,8 +416,8 @@ class App
             }
 
             {
-                const auto res = copyBufferBlocking(mWindow->ctx(), mUpdateCommandBuffers[0],
-                                                    sizeof(verts), verts, 0, mVertexBuffer);
+                const auto res = copyBufferBlocking(mCtx, mUpdateCommandBuffers[0], sizeof(verts),
+                                                    verts, 0, mVertexBuffer);
                 if (res != vk::Result::eSuccess)
                 {
                     return res;
@@ -396,8 +430,8 @@ class App
 
             {
                 const auto res = createBuffer(
-                    mWindow->ctx(), sizeof(indices),
-                    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+                    mCtx, sizeof(indices),
+                    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
                     vk::MemoryPropertyFlagBits::eDeviceLocal, mIndexBuffer);
                 if (res != vk::Result::eSuccess)
                 {
@@ -406,8 +440,8 @@ class App
             }
 
             {
-                const auto res = copyBufferBlocking(mWindow->ctx(), mUpdateCommandBuffers[0],
-                                                    sizeof(indices), indices, 0, mIndexBuffer);
+                const auto res = copyBufferBlocking(mCtx, mUpdateCommandBuffers[0], sizeof(indices),
+                                                    indices, 0, mIndexBuffer);
                 if (res != vk::Result::eSuccess)
                 {
                     return res;
@@ -420,8 +454,8 @@ class App
 
     void destroy()
     {
-        destroyBuffer(mWindow->ctx(), mVertexBuffer);
-        destroyBuffer(mWindow->ctx(), mIndexBuffer);
+        destroyBuffer(mCtx, mVertexBuffer);
+        destroyBuffer(mCtx, mIndexBuffer);
         for (auto cmd : mRenderCommands)
         {
             mDevice.destroyFence(cmd.inFlightFence);
@@ -439,6 +473,8 @@ class App
 
         mDevice.destroyShaderModule(mPs);
         mDevice.destroyShaderModule(mVs);
+
+        destroySurface(mCtx, mSurface);
     }
 
     void drawFrame(uint32_t frameIndex)
@@ -458,7 +494,7 @@ class App
         uint32_t imageIndex;
         {
             auto res = mDevice.acquireNextImageKHR(
-                mWindow->ctx()->swapchain(), std::numeric_limits<uint64_t>::max(),
+                mSurface.swapchain, std::numeric_limits<uint64_t>::max(),
                 renderCommand.imageAvailableSemaphore, nullptr, &imageIndex);
             switch (res)
             {
@@ -508,7 +544,7 @@ class App
                 .framebuffer = mFramebuffers[imageIndex],
                 .renderArea = {
                     .offset = {0, 0},
-                    .extent = mWindow->ctx()->swapchainExtent(),
+                    .extent = mSurface.extent,
                 },
                 .clearValueCount = 1,
                 .pClearValues = &clearValue,
@@ -526,8 +562,8 @@ class App
             const vk::Viewport viewport = {
                 .x = 0.0f,
                 .y = 0.0f,
-                .width = static_cast<float>(mWindow->ctx()->swapchainExtent().width),
-                .height = static_cast<float>(mWindow->ctx()->swapchainExtent().height),
+                .width = static_cast<float>(mSurface.extent.width),
+                .height = static_cast<float>(mSurface.extent.height),
                 .minDepth = 0.0f,
                 .maxDepth = 1.0f,
             };
@@ -536,7 +572,7 @@ class App
 
             const vk::Rect2D scissor{
                 .offset = {0, 0},
-                .extent = mWindow->ctx()->swapchainExtent(),
+                .extent = mSurface.extent,
             };
 
             commandBuffer.setScissor(0, 1, &scissor);
@@ -570,7 +606,7 @@ class App
                 .pSignalSemaphores = signalSemaphores,
             };
 
-            vk::Queue graphicsQueue = mWindow->ctx()->graphicsQueue();
+            vk::Queue graphicsQueue = mCtx->graphicsQueue();
 
             const auto res = graphicsQueue.submit(submitInfo, renderCommand.inFlightFence);
             if (res != vk::Result::eSuccess)
@@ -582,7 +618,7 @@ class App
         {
             const vk::Semaphore waitSemaphores[] = {renderCommand.renderFinishedSemaphore};
 
-            const vk::SwapchainKHR swapchains[] = {mWindow->ctx()->swapchain()};
+            const vk::SwapchainKHR swapchains[] = {mSurface.swapchain};
             const vk::PresentInfoKHR presentInfo = {
                 .waitSemaphoreCount = 1,
                 .pWaitSemaphores = waitSemaphores,
@@ -591,7 +627,7 @@ class App
                 .pImageIndices = &imageIndex,
             };
 
-            vk::Queue presentQueue = mWindow->ctx()->presentQueue();
+            vk::Queue presentQueue = mCtx->presentQueue();
 
             const auto res = presentQueue.presentKHR(presentInfo);
             switch (res)
@@ -617,7 +653,10 @@ class App
     }
 
   private:
-    pyroc::Window* mWindow;
+    Context* mCtx;
+
+    pyroc::window::Window* mWindow;
+
     vk::Device mDevice;
 
     vk::ShaderModule mVs;
@@ -631,6 +670,7 @@ class App
 
     std::vector<vk::CommandBuffer> mUpdateCommandBuffers;
 
+    Surface mSurface;
     std::vector<vk::Framebuffer> mFramebuffers;
 
     std::vector<RenderCommand> mRenderCommands;
@@ -643,13 +683,32 @@ class App
 
 int main(void)
 {
-    pyroc::Window window;
-    window.init();
-    vk::Device device = window.ctx()->device();
+    Context ctx;
+    {
+        vk::Result res = ctx.init();
+        if (res != vk::Result::eSuccess)
+        {
+            abort();
+        }
+    }
+
+    const pyroc::window::WindowCreateInfo windowCreateInfo = {
+        .width = 800,
+        .height = 600,
+        .name = "Pyroc Basic Demo",
+        .vkCtx = &ctx,
+        .mode = pyroc::window::WindowMode::eFullscreen,  // Change to eFullscreen or
+                                                         // eBorderlessWindowed if needed
+    };
+
+    pyroc::window::Window window;
+    window.init(&windowCreateInfo);
+
+    vk::Device device = ctx.device();
 
     App app;
     {
-        const auto res = app.init(&window, device);
+        const auto res = app.init(&ctx, &window);
         if (res != vk::Result::eSuccess)
         {
             abort();

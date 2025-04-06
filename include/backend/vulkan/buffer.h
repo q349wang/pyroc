@@ -1,10 +1,11 @@
 #pragma once
 
 #include "api.h"
-#include "context.h"
 
 namespace pyroc::backend::vulkan
 {
+
+class Context;
 
 struct Buffer
 {

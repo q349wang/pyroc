@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <iostream>
-#include <limits>
 #include <vector>
 
 namespace pyroc::backend::vulkan
@@ -20,6 +19,15 @@ constexpr bool enableValidationLayers = false;
 #else
 constexpr bool enableValidationLayers = true;
 #endif
+
+vk::Bool32 getPresentationSupport(vk::PhysicalDevice device, uint32_t queueFamilyIndex)
+{
+#ifdef _WIN32
+    return device.getWin32PresentationSupportKHR(queueFamilyIndex);
+#else
+    #error "Unsupported operating system"
+#endif
+}
 
 bool checkValidationLayerSupport()
 {
@@ -102,24 +110,27 @@ uint32_t findBestQueue(vk::QueueFlags desiredFlags,
     return targetIndex;
 }
 
-Context::QueueFamilyIndices findQueueFamiles(vk::PhysicalDevice device, vk::SurfaceKHR surface)
+Context::QueueFamilyIndices findQueueFamiles(vk::PhysicalDevice device)
 {
     Context::QueueFamilyIndices indices;
     const auto queueFamilies = device.getQueueFamilyProperties();
 
     indices.graphics = findBestQueue(vk::QueueFlagBits::eGraphics, queueFamilies);
 
+    if (getPresentationSupport(device, indices.graphics))
+    {
+        indices.present = indices.graphics;  // Graphics and present are the same queue
+        return indices;
+    }
+
     for (uint32_t i = 0; i < queueFamilies.size(); ++i)
     {
-        const auto [res, presentSupport] = device.getSurfaceSupportKHR(i, surface);
-        if (res != vk::Result::eSuccess)
-        {
-            break;
-        }
+        const vk::Bool32 presentSupport = getPresentationSupport(device, i);
 
         if (presentSupport)
         {
             indices.present = i;
+            break;
         }
     }
 
@@ -158,34 +169,7 @@ bool checkDeviceExtensionSupport(vk::PhysicalDevice device)
     return true;
 }
 
-Context::SwapchainInfo querySwapchainInfo(vk::PhysicalDevice device, vk::SurfaceKHR surface)
-{
-    Context::SwapchainInfo info;
-
-    {
-        const auto [res, capabilities] = device.getSurfaceCapabilitiesKHR(surface);
-        if (res == vk::Result::eSuccess)
-        {
-            info.capabilities = capabilities;
-        }
-    }
-
-    {
-        const auto [res, formats] = device.getSurfaceFormatsKHR(surface);
-
-        info.formats = formats;
-    }
-
-    {
-        const auto [res, presentModes] = device.getSurfacePresentModesKHR(surface);
-
-        info.presentModes = presentModes;
-    }
-
-    return info;
-}
-
-bool isDeviceSuitable(vk::PhysicalDevice device, vk::SurfaceKHR surface)
+bool isDeviceSuitable(vk::PhysicalDevice device)
 {
     const auto properties = device.getProperties();
 
@@ -194,7 +178,7 @@ bool isDeviceSuitable(vk::PhysicalDevice device, vk::SurfaceKHR surface)
         return false;
     }
 
-    const auto queueFamily = findQueueFamiles(device, surface);
+    const auto queueFamily = findQueueFamiles(device);
     if (queueFamily.graphics == std::numeric_limits<uint32_t>::max()
         || queueFamily.present == std::numeric_limits<uint32_t>::max())
     {
@@ -207,186 +191,15 @@ bool isDeviceSuitable(vk::PhysicalDevice device, vk::SurfaceKHR surface)
         return false;
     }
 
-    const auto swapchainInfo = querySwapchainInfo(device, surface);
-    if (swapchainInfo.formats.empty() || swapchainInfo.presentModes.empty())
-    {
-        return false;
-    }
-
     return true;
-}
-
-vk::SurfaceFormatKHR chooseSwapchainFormat(const Context::SwapchainInfo& info)
-{
-    for (const auto& format : info.formats)
-    {
-        if (format.format == vk::Format::eB8G8R8A8Srgb
-            && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
-        {
-            return format;
-        }
-    }
-
-    return info.formats[0];
-}
-
-vk::PresentModeKHR chooseSwapchainPresentMode(const Context::SwapchainInfo& info)
-{
-    for (const auto& presentMode : info.presentModes)
-    {
-        if (presentMode == vk::PresentModeKHR::eMailbox)
-        {
-            return presentMode;
-        }
-    }
-
-    return vk::PresentModeKHR::eFifo;
-}
-
-vk::Extent2D chooseSwapchainExtent(GLFWwindow* window, const Context::SwapchainInfo& info)
-{
-    if (info.capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-    {
-        return info.capabilities.currentExtent;
-    }
-
-    int32_t width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-
-    vk::Extent2D actualExtent = {
-        .width = static_cast<uint32_t>(width),
-        .height = static_cast<uint32_t>(height),
-    };
-
-    actualExtent.width = std::clamp(actualExtent.width, info.capabilities.minImageExtent.width,
-                                    info.capabilities.maxImageExtent.width);
-    actualExtent.height = std::clamp(actualExtent.height, info.capabilities.minImageExtent.height,
-                                     info.capabilities.maxImageExtent.height);
-
-    return actualExtent;
 }
 
 }  // namespace
 
-vk::Result Context::recreateSwapchain(GLFWwindow* window)
+vk::Result Context::init()
 {
-    const auto res = mDevice.waitIdle();
-    if (res != vk::Result::eSuccess)
-    {
-        return res;
-    }
+    glfwInit();
 
-    destroySwapchain();
-
-    return createSwapchain(window);
-}
-
-vk::Result Context::createSwapchain(GLFWwindow* window)
-{
-    {
-        const SwapchainInfo info = querySwapchainInfo(mPhysicalDevice, mSurface);
-
-        const vk::SurfaceFormatKHR format = chooseSwapchainFormat(info);
-        const vk::PresentModeKHR presentMode = chooseSwapchainPresentMode(info);
-        const vk::Extent2D extent = chooseSwapchainExtent(window, info);
-
-        uint32_t imageCount = info.capabilities.minImageCount + 1;
-
-        if (info.capabilities.maxImageCount > 0 && imageCount > info.capabilities.maxImageCount)
-        {
-            imageCount = info.capabilities.maxImageCount;
-        }
-
-        const bool exclusiveQueue = mQueueFamilyIndices.graphics == mQueueFamilyIndices.present;
-        const uint32_t queueFamilyIndices[]
-            = {mQueueFamilyIndices.graphics, mQueueFamilyIndices.present};
-        const vk::SwapchainCreateInfoKHR createInfo = {
-            .surface = mSurface,
-            .minImageCount = imageCount,
-            .imageFormat = format.format,
-            .imageColorSpace = format.colorSpace,
-            .imageExtent = extent,
-            .imageArrayLayers = 1,
-            .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
-            .imageSharingMode
-            = exclusiveQueue ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent,
-            .queueFamilyIndexCount = exclusiveQueue ? 0u : 2u,
-            .pQueueFamilyIndices = exclusiveQueue ? nullptr : queueFamilyIndices,
-            .preTransform = info.capabilities.currentTransform,
-            .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-            .presentMode = presentMode,
-            .clipped = VK_TRUE,
-            .oldSwapchain = nullptr,
-        };
-
-        const auto [res, swapchain] = mDevice.createSwapchainKHR(createInfo);
-        if (res != vk::Result::eSuccess)
-        {
-            return res;
-        }
-
-        mSwapchain = swapchain;
-        mSwapchainFormat = format.format;
-        mSwapchainExtent = extent;
-    }
-
-    {
-        const auto [res, swapchainImages] = mDevice.getSwapchainImagesKHR(mSwapchain);
-        if (res != vk::Result::eSuccess)
-        {
-            return res;
-        }
-
-        mSwapchainImages = swapchainImages;
-    }
-
-    {
-        mSwapchainImageViews.resize(mSwapchainImages.size());
-        for (uint32_t i = 0; i < mSwapchainImages.size(); i++)
-        {
-            vk::ImageViewCreateInfo createInfo = {
-                .image = mSwapchainImages[i],
-                .viewType = vk::ImageViewType::e2D,
-                .format = mSwapchainFormat,
-                .components = {
-                    .r = vk::ComponentSwizzle::eIdentity,
-                    .g = vk::ComponentSwizzle::eIdentity,
-                    .b = vk::ComponentSwizzle::eIdentity,
-                    .a = vk::ComponentSwizzle::eIdentity,
-                },
-                .subresourceRange = {
-                    .aspectMask = vk::ImageAspectFlagBits::eColor,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                },
-            };
-
-            const auto [res, image] = mDevice.createImageView(createInfo);
-            if (res != vk::Result::eSuccess)
-            {
-                return res;
-            }
-
-            mSwapchainImageViews[i] = image;
-        }
-    }
-
-    return vk::Result::eSuccess;
-}
-
-void Context::destroySwapchain()
-{
-    for (auto imageView : mSwapchainImageViews)
-    {
-        mDevice.destroyImageView(imageView);
-    }
-    mDevice.destroySwapchainKHR(mSwapchain);
-}
-
-vk::Result Context::init(GLFWwindow* window)
-{
     const vk::ApplicationInfo appInfo{
         .pApplicationName = "PyroC Backend",
         .applicationVersion = VK_MAKE_API_VERSION(0, 0, 0, 0),
@@ -403,9 +216,10 @@ vk::Result Context::init(GLFWwindow* window)
     {
         const vk::InstanceCreateInfo instanceCreateInfo = {
             .pApplicationInfo = &appInfo,
-            .enabledLayerCount = useValidation ? static_cast<uint32_t>(
-                                     sizeof(validationLayers) / sizeof(validationLayers[0]))
-                                               : 0,
+            .enabledLayerCount
+            = useValidation
+                  ? static_cast<uint32_t>(sizeof(validationLayers) / sizeof(validationLayers[0]))
+                  : 0,
             .ppEnabledLayerNames = useValidation ? validationLayers : nullptr,
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data(),
@@ -420,17 +234,6 @@ vk::Result Context::init(GLFWwindow* window)
     }
 
     {
-        VkSurfaceKHR surface;
-        auto res = glfwCreateWindowSurface(mInstance, window, nullptr, &surface);
-        if (res != VK_SUCCESS)
-        {
-            return vk::Result(res);
-        }
-
-        mSurface = surface;
-    }
-
-    {
         const auto [res, devices] = mInstance.enumeratePhysicalDevices();
         if (res != vk::Result::eSuccess)
         {
@@ -440,7 +243,7 @@ vk::Result Context::init(GLFWwindow* window)
         bool found = false;
         for (const auto& device : devices)
         {
-            if (isDeviceSuitable(device, mSurface))
+            if (isDeviceSuitable(device))
             {
                 found = true;
                 mPhysicalDevice = device;
@@ -455,7 +258,7 @@ vk::Result Context::init(GLFWwindow* window)
     }
 
     {
-        mQueueFamilyIndices = findQueueFamiles(mPhysicalDevice, mSurface);
+        mQueueFamilyIndices = findQueueFamiles(mPhysicalDevice);
     }
 
     {
@@ -504,24 +307,15 @@ vk::Result Context::init(GLFWwindow* window)
         mPresentQueue = mDevice.getQueue(mQueueFamilyIndices.present, 0);
     }
 
-    {
-        const auto res = createSwapchain(window);
-        if (res != vk::Result::eSuccess)
-        {
-            return res;
-        }
-    }
-
     return vk::Result::eSuccess;
 }
 
 void Context::destroy()
 {
-    destroySwapchain();
-
     mDevice.destroy();
-    mInstance.destroySurfaceKHR(mSurface);
     mInstance.destroy();
+
+    glfwTerminate();
 }
 
 }  // namespace pyroc::backend::vulkan
