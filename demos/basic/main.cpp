@@ -35,6 +35,12 @@ class App
         mFramebuffers.resize(swapchainImageViews.size());
         for (uint32_t i = 0; i < swapchainImageViews.size(); ++i)
         {
+            if (!swapchainImageViews[i])
+            {
+                mFramebuffers[i] = nullptr;
+                continue;
+            }
+
             vk::ImageView attachments[] = {
                 swapchainImageViews[i],
             };
@@ -64,6 +70,10 @@ class App
     {
         for (auto framebuffer : mFramebuffers)
         {
+            if (framebuffer == nullptr)
+            {
+                continue;
+            }
             mDevice.destroyFramebuffer(framebuffer);
         }
     }
@@ -80,6 +90,7 @@ class App
 
         int32_t width, height;
         glfwGetFramebufferSize(mWindow->window(), &width, &height);
+        std::cout << "Recreating swapchain with size: " << width << "x" << height << std::endl;
 
         if (width == 0 || height == 0)
         {
@@ -95,7 +106,7 @@ class App
             },
         };
 
-        recreateSurface(mCtx, &recreateInfo, mSurface);
+        res = recreateSurface(mCtx, &recreateInfo, mSurface);
 
         res = createFramebuffers();
         if (res != vk::Result::eSuccess)
@@ -493,6 +504,10 @@ class App
 
         uint32_t imageIndex;
         {
+            if (mSurface.swapchain == nullptr)
+            {
+                return;
+            }
             auto res = mDevice.acquireNextImageKHR(
                 mSurface.swapchain, std::numeric_limits<uint64_t>::max(),
                 renderCommand.imageAvailableSemaphore, nullptr, &imageIndex);
@@ -524,6 +539,12 @@ class App
                 abort();
             }
         }
+
+        if (!mFramebuffers[imageIndex])
+        {
+            return;
+        }
+
         {
             commandBuffer.reset();
 
@@ -697,8 +718,8 @@ int main(void)
         .height = 600,
         .name = "Pyroc Basic Demo",
         .vkCtx = &ctx,
-        .mode = pyroc::window::WindowMode::eFullscreen,  // Change to eFullscreen or
-                                                         // eBorderlessWindowed if needed
+        .mode = pyroc::window::WindowMode::eWindowed,  // Change to eFullscreen or
+                                                       // eBorderlessWindowed if needed
     };
 
     pyroc::window::Window window;
@@ -721,7 +742,30 @@ int main(void)
         [](GLFWwindow* glfwWindow, int, int)
         {
             App* pApp = static_cast<App*>(glfwGetWindowUserPointer(glfwWindow));
+            std::cout << "Framebuffer size changed, recreating swapchain...\n" << std::endl;
             pApp->recreateSwapchain();
+        });
+
+    glfwSetWindowSizeCallback(
+        window.window(),
+        [](GLFWwindow* glfwWindow, int, int)
+        {
+            App* pApp = static_cast<App*>(glfwGetWindowUserPointer(glfwWindow));
+
+            std::cout << "Window size changed, recreating swapchain...\n" << std::endl;
+            pApp->recreateSwapchain();
+        });
+
+    glfwSetWindowFocusCallback(
+        window.window(),
+        [](GLFWwindow* glfwWindow, int focused)
+        {
+            App* pApp = static_cast<App*>(glfwGetWindowUserPointer(glfwWindow));
+            if (focused)
+            {
+                std::cout << "Window focused, recreating swapchain...\n" << std::endl;
+                pApp->recreateSwapchain();
+            }
         });
 
     uint32_t currentFrame = 0;
@@ -739,6 +783,7 @@ int main(void)
         }
     }
 
+    app.destroy();
     window.cleanup();
     return 0;
 }

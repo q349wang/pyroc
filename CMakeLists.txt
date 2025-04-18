@@ -94,7 +94,7 @@ function(add_demo target)
   
   add_dependencies(${target} shaders)
   target_link_libraries(${target} ${PROJECT_NAME})
-  target_link_options(${target} PRIVATE -mwindows)
+  #target_link_options(${target} PRIVATE -mwindows)
 
 endfunction()
 

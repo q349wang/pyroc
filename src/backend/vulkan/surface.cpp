@@ -4,6 +4,8 @@
 
 #include <limits>
 
+#include <iostream>
+
 namespace pyroc::backend::vulkan
 {
 
@@ -99,6 +101,16 @@ vk::Result createSwapchain(Context* ctx, Surface& surface)
         const vk::PresentModeKHR presentMode = chooseSwapchainPresentMode(info);
         const vk::Extent2D extent = chooseSwapchainExtent(surface.extent, info);
 
+        if (extent.width == 0 || extent.height == 0)
+        {
+            // Surface extent is invalid, skip creating the swapchain
+            return vk::Result::eSuccess;
+        }
+
+        std::cout << "Creating swapchain with format: " << vk::to_string(format.format)
+                  << ", present mode: " << vk::to_string(presentMode) << ", extent: ("
+                  << extent.width << "x" << extent.height << ")" << std::endl;
+
         uint32_t imageCount = info.capabilities.minImageCount + 1;
 
         if (info.capabilities.maxImageCount > 0 && imageCount > info.capabilities.maxImageCount)
@@ -188,11 +200,13 @@ void destroySwapchain(Context* ctx, Surface& surface)
 {
     vk::Device device = ctx->device();
 
-    for (auto imageView : surface.swapchainImageViews)
+    for (auto& imageView : surface.swapchainImageViews)
     {
         device.destroyImageView(imageView);
+        imageView = nullptr;
     }
     device.destroySwapchainKHR(surface.swapchain);
+    surface.swapchain = nullptr;
 }
 
 }  // namespace
@@ -201,6 +215,11 @@ vk::Result createSurface(Context* ctx, const SurfaceCreateInfo* createInfo, Surf
 {
     surface.surface = createInfo->surface;
     surface.extent = createInfo->extent;
+
+    if (surface.extent.width == 0 || surface.extent.height == 0)
+    {
+        return vk::Result::eSuccess;
+    }
 
     return createSwapchain(ctx, surface);
 }
@@ -218,6 +237,10 @@ vk::Result recreateSurface(Context* ctx, const SurfaceCreateInfo* createInfo, Su
 
     destroySwapchain(ctx, surface);
 
+    if (surface.extent.width == 0 || surface.extent.height == 0)
+    {
+        return vk::Result::eSuccess;
+    }
     return createSwapchain(ctx, surface);
 }
 
