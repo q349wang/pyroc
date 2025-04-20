@@ -718,8 +718,8 @@ int main(void)
         .height = 600,
         .name = "Pyroc Basic Demo",
         .vkCtx = &ctx,
-        .mode = pyroc::window::WindowMode::eWindowed,  // Change to eFullscreen or
-                                                       // eBorderlessWindowed if needed
+        .mode = pyroc::window::WindowMode::eBorderlessWindowed,  // Change to eFullscreen or
+                                                                 // eBorderlessWindowed if needed
     };
 
     pyroc::window::Window window;
