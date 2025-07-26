@@ -69,6 +69,7 @@ std::vector<const char*> getRequiredInstanceExtensions()
 
     if (enableValidationLayers)
     {
+        extensions.push_back(VK_EXT_LAYER_SETTINGS_EXTENSION_NAME);
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
@@ -208,18 +209,35 @@ vk::Result Context::init()
         .apiVersion = VK_API_VERSION_1_3,
     };
 
-    auto extensions = getRequiredInstanceExtensions();
-
     const bool useValidation = enableValidationLayers && checkValidationLayerSupport();
     std::cout << "Using validation?: " << (useValidation ? "TRUE" : "FALSE") << std::endl;
 
+    auto extensions = getRequiredInstanceExtensions();
+
     {
+        const vk::ValidationFeatureEnableEXT validationFeaturesEnabled[] = {
+            vk::ValidationFeatureEnableEXT::eGpuAssisted,
+            vk::ValidationFeatureEnableEXT::eGpuAssistedReserveBindingSlot,
+            vk::ValidationFeatureEnableEXT::eBestPractices,
+            vk::ValidationFeatureEnableEXT::eSynchronizationValidation,
+        };
+
+        const vk::ValidationFeaturesEXT layerSettingsCreateInfo = {
+            .enabledValidationFeatureCount
+            = useValidation ? std::size(validationFeaturesEnabled) : 0,
+            .pEnabledValidationFeatures = useValidation ? validationFeaturesEnabled : nullptr,
+        };
+
+        const vk::LayerSettingsCreateInfoEXT layerSettings = {
+            .pNext = useValidation ? &layerSettingsCreateInfo : nullptr,
+            .settingCount = 0,
+            .pSettings = nullptr,
+        };
+
         const vk::InstanceCreateInfo instanceCreateInfo = {
+            .pNext = &layerSettings,
             .pApplicationInfo = &appInfo,
-            .enabledLayerCount
-            = useValidation
-                  ? static_cast<uint32_t>(sizeof(validationLayers) / sizeof(validationLayers[0]))
-                  : 0,
+            .enabledLayerCount = useValidation ? std::size(validationLayers) : 0,
             .ppEnabledLayerNames = useValidation ? validationLayers : nullptr,
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data(),
