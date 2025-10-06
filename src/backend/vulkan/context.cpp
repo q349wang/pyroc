@@ -20,6 +20,16 @@ constexpr bool enableValidationLayers = false;
 constexpr bool enableValidationLayers = true;
 #endif
 
+VKAPI_ATTR VkBool32 VKAPI_CALL
+debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
+              VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
+              const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* /*pUserData*/)
+{
+    LOG_DEBUG("Validation layer: %s", pCallbackData->pMessage);
+
+    return VK_FALSE;
+}
+
 vk::Bool32 getPresentationSupport(vk::PhysicalDevice device, uint32_t queueFamilyIndex)
 {
 #ifdef _WIN32
@@ -250,6 +260,27 @@ vk::Result Context::init()
             return res;
         }
         mInstance = instance;
+    }
+
+    if (useValidation)
+    {
+        const vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo = {
+            .messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo
+                               | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
+                               | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+            .messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral
+                           | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation
+                           | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+            .pfnUserCallback = debugCallback,
+        };
+
+        auto [res, debugMessenger] = mInstance.createDebugUtilsMessengerEXT(
+            debugCreateInfo, nullptr, vk::DispatchLoaderDynamic{mInstance, vkGetInstanceProcAddr});
+        if (res != vk::Result::eSuccess)
+        {
+            return res;
+        }
+        mDebugMessenger = debugMessenger;
     }
 
     {

@@ -31,6 +31,7 @@ class Context
 
   private:
     vk::Instance mInstance;
+    vk::DebugUtilsMessengerEXT mDebugMessenger;
 
     vk::PhysicalDevice mPhysicalDevice;
     vk::Device mDevice;
