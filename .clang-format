@@ -15,3 +15,5 @@ IndentWidth: "4"
 NamespaceIndentation: None
 BreakBeforeBinaryOperators: All
 BreakBeforeTernaryOperators: "true"
+InsertNewlineAtEOF: true
+KeepEmptyLinesAtEOF: true

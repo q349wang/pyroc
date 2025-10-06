@@ -2,9 +2,9 @@
 #include "backend/vulkan/api.h"
 
 #include "util/bitmanip.h"
+#include "util/log.h"
 
 #include <algorithm>
-#include <iostream>
 #include <vector>
 
 namespace pyroc::backend::vulkan
@@ -100,8 +100,8 @@ uint32_t findBestQueue(vk::QueueFlags desiredFlags,
         }
 
         // Matching queue, but with fewer flags than the current best?  Use it.
-        if (countBits(vk::QueueFlags::MaskType(queueFamilies[i].queueFlags))
-            < countBits(vk::QueueFlags::MaskType(targetFlags)))
+        if (util::countBits(vk::QueueFlags::MaskType(queueFamilies[i].queueFlags))
+            < util::countBits(vk::QueueFlags::MaskType(targetFlags)))
         {
             targetIndex = i;
             targetFlags = queueFamilies[i].queueFlags;
@@ -210,7 +210,7 @@ vk::Result Context::init()
     };
 
     const bool useValidation = enableValidationLayers && checkValidationLayerSupport();
-    std::cout << "Using validation?: " << (useValidation ? "TRUE" : "FALSE") << std::endl;
+    LOG_DEBUG("Using validation?: %s", (useValidation ? "TRUE" : "FALSE"));
 
     auto extensions = getRequiredInstanceExtensions();
 
@@ -224,7 +224,7 @@ vk::Result Context::init()
 
         const vk::ValidationFeaturesEXT layerSettingsCreateInfo = {
             .enabledValidationFeatureCount
-            = useValidation ? std::size(validationFeaturesEnabled) : 0,
+            = useValidation ? static_cast<uint32_t>(std::size(validationFeaturesEnabled)) : 0,
             .pEnabledValidationFeatures = useValidation ? validationFeaturesEnabled : nullptr,
         };
 
@@ -237,7 +237,8 @@ vk::Result Context::init()
         const vk::InstanceCreateInfo instanceCreateInfo = {
             .pNext = &layerSettings,
             .pApplicationInfo = &appInfo,
-            .enabledLayerCount = useValidation ? std::size(validationLayers) : 0,
+            .enabledLayerCount
+            = useValidation ? static_cast<uint32_t>(std::size(validationLayers)) : 0,
             .ppEnabledLayerNames = useValidation ? validationLayers : nullptr,
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data(),

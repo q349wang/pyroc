@@ -2,9 +2,9 @@
 
 #include "backend/vulkan/context.h"
 
-#include <limits>
+#include "util/log.h"
 
-#include <iostream>
+#include <limits>
 
 namespace pyroc::backend::vulkan
 {
@@ -107,9 +107,9 @@ vk::Result createSwapchain(Context* ctx, Surface& surface)
             return vk::Result::eSuccess;
         }
 
-        std::cout << "Creating swapchain with format: " << vk::to_string(format.format)
-                  << ", present mode: " << vk::to_string(presentMode) << ", extent: ("
-                  << extent.width << "x" << extent.height << ")" << std::endl;
+        LOG_DEBUG("Creating swapchain with format: %s, present mode: %s, extent: (%ux%u)",
+                  vk::to_string(format.format).c_str(), vk::to_string(presentMode).c_str(),
+                  extent.width, extent.height);
 
         uint32_t imageCount = info.capabilities.minImageCount + 1;
 

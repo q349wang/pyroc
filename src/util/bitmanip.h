@@ -3,7 +3,7 @@
 #include <bitset>
 #include <cstdint>
 
-namespace pyroc
+namespace pyroc::util
 {
 template <typename T>
 constexpr size_t countBits(T value)
@@ -12,4 +12,4 @@ constexpr size_t countBits(T value)
 
     return bits.count();
 }
-}  // namespace pyroc
+}  // namespace pyroc::util
