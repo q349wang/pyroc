@@ -21,6 +21,9 @@ struct storage
     typedef struct type
     {
         T data[L];
+
+        constexpr T& operator[](size_t i) { return data[i]; }
+        constexpr const T& operator[](size_t i) const { return data[i]; }
     } type;
 };
 }  // namespace detail

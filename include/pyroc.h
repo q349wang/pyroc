@@ -8,4 +8,6 @@
 
 #include "math/math.h"
 
+#include "core/camera.h"
+
 #include "window/window.h"

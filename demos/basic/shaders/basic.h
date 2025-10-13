@@ -7,4 +7,20 @@
 
 #define OUT_FRAG_COLOUR 0
 
+#define PUSH_CONSTANTS \
+    mat4 model;        \
+    mat4 view;         \
+    mat4 projection;
+
+#ifdef __cplusplus
+    #include "pyroc.h"
+
+using namespace pyroc::math;
+
+struct PushConstants
+{
+    PUSH_CONSTANTS
+};
+#endif
+
 #endif

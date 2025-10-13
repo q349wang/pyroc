@@ -22,7 +22,7 @@ struct RenderCommand
 
 struct Vertex
 {
-    vec2 pos;
+    vec3 pos;
     vec3 colour;
 };
 
@@ -202,7 +202,7 @@ class App
             .depthClampEnable = vk::False,
             .rasterizerDiscardEnable = vk::False,
             .polygonMode = vk::PolygonMode::eFill,
-            .cullMode = vk::CullModeFlagBits::eBack,
+            .cullMode = vk::CullModeFlagBits::eNone,
             .frontFace = vk::FrontFace::eClockwise,
             .depthBiasEnable = vk::False,
             .lineWidth = 1.0f,
@@ -226,9 +226,17 @@ class App
         };
 
         {
-            vk::PipelineLayoutCreateInfo layoutInfo = {
-
+            vk::PushConstantRange pushConstantRange = {
+                .stageFlags = vk::ShaderStageFlagBits::eVertex,
+                .offset = 0,
+                .size = sizeof(PushConstants),
             };
+
+            vk::PipelineLayoutCreateInfo layoutInfo = {
+                .pushConstantRangeCount = 1,
+                .pPushConstantRanges = &pushConstantRange,
+            };
+
             const auto [res, handle] = mDevice.createPipelineLayout(layoutInfo);
             if (res != vk::Result::eSuccess)
             {
@@ -409,10 +417,14 @@ class App
 
         {
             Vertex verts[] = {
-                {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-                {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-                {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},
+                {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}},  // 0
+                {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+                {{-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},   // 2
+                {{-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 1.0f}},
+                {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},   // 4
+                {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f}},
+                {{1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f}},    // 6
+                {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},
             };
 
             {
@@ -437,8 +449,23 @@ class App
         }
 
         {
-            uint16_t indices[] = {0, 1, 2, 2, 3, 0};
-
+            // clang-format off
+            uint16_t indices[] =
+            {
+                0, 2, 1, 
+                1, 2, 3,
+                4, 6, 0,
+                0, 6, 2,
+                5, 7, 4,
+                4, 7, 6,
+                1, 3, 5,
+                5, 3, 7,
+                6, 7, 2,
+                2, 7, 3,
+                4, 0, 5,
+                5, 0, 1,
+            };
+            // clang-format on
             {
                 const auto res = createBuffer(
                     mCtx, sizeof(indices),
@@ -458,6 +485,22 @@ class App
                     return res;
                 }
             }
+        }
+
+        {
+            mCamera = {
+                .eye = vec3{0.0f, 0.0f, 10.0f},
+                .center = vec3{0.0f, 0.0f, 0.0f},
+                .up = vec3{0.0f, 1.0f, 0.0f},
+                .fovY = 45.0f,
+                .aspect = static_cast<float>(mSurface.extent.width)
+                          / static_cast<float>(mSurface.extent.height),
+                .nearPlane = 0.1f,
+                .farPlane = 100.0f,
+            };
+
+            mViewMatrix = mCamera.viewMatrix();
+            mProjMatrix = mCamera.projectionMatrix();
         }
 
         return vk::Result::eSuccess;
@@ -598,7 +641,15 @@ class App
 
             commandBuffer.setScissor(0, 1, &scissor);
 
-            commandBuffer.drawIndexed(6, 1, 0, 0, 0);
+            PushConstants pc = {
+                .model = mModelMatrix,
+                .view = mViewMatrix,
+                .projection = mProjMatrix,
+            };
+            commandBuffer.pushConstants(mPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0,
+                                        sizeof(PushConstants), &pc);
+
+            commandBuffer.drawIndexed(12, 1, 0, 3, 0);
 
             commandBuffer.endRenderPass();
 
@@ -698,6 +749,16 @@ class App
 
     Buffer mVertexBuffer;
     Buffer mIndexBuffer;
+
+    pyroc::core::Camera mCamera;
+    mat4 mModelMatrix = {
+        vec4{1.0f, 0.0f, 0.0f, 0.0f},
+        vec4{0.0f, 1.0f, 0.0f, 0.0f},
+        vec4{0.0f, 0.0f, 1.0f, 0.0f},
+        vec4{0.0f, 0.0f, 0.0f, 1.0f},
+    };
+    mat4 mViewMatrix = mat4::identity();
+    mat4 mProjMatrix = mat4::identity();
 };
 
 }  // namespace
@@ -718,8 +779,8 @@ int main(void)
         .height = 600,
         .name = "Pyroc Basic Demo",
         .vkCtx = &ctx,
-        .mode = pyroc::window::WindowMode::eBorderlessWindowed,  // Change to eFullscreen or
-                                                                 // eBorderlessWindowed if needed
+        .mode = pyroc::window::WindowMode::eWindowed,  // Change to eFullscreen or
+                                                       // eBorderlessWindowed if needed
     };
 
     pyroc::window::Window window;

@@ -23,7 +23,7 @@ union vec<4, T>
     };
     typename detail::storage<4, T>::type data;
 
-    T& operator[](size_t i) { return data.data[i]; }
-    const T& operator[](size_t i) const { return data.data[i]; }
+    constexpr T& operator[](size_t i) { return data.data[i]; }
+    constexpr const T& operator[](size_t i) const { return data.data[i]; }
 };
 }  // namespace pyroc::math
