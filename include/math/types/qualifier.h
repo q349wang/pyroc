@@ -7,7 +7,7 @@ namespace pyroc::math
 template <size_t L, typename T>
 union vec;
 
-template <size_t L, typename T>
+template <size_t N, size_t M, typename T>
 union mat;
 
 template <size_t L, typename T>
