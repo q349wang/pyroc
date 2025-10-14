@@ -1,4 +1,5 @@
 #version 460
+#extension GL_EXT_debug_printf : enable
 
 #include "basic.h"
 
@@ -11,6 +12,9 @@ layout(push_constant) uniform constants{PUSH_CONSTANTS} pc;
 
 void main()
 {
-    gl_Position = vec4(inPosition.x, inPosition.y, 0.0, 1.0);
+    vec4 modelPosition = pc.view * pc.model * vec4(inPosition, 1.0);
+    debugPrintfEXT("inPos %f %f %f modelPos %f %f %f\n", inPosition.x, inPosition.y, inPosition.z,
+                   modelPosition.x, modelPosition.y, modelPosition.z);
+    gl_Position = modelPosition;
     fragColour = inColour;
 }

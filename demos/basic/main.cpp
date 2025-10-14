@@ -173,7 +173,7 @@ class App
             = {{
                    .location = IN_VERTEX_POSITION,
                    .binding = IN_BINDING_VERTEX,
-                   .format = vk::Format::eR32G32Sfloat,
+                   .format = vk::Format::eR32G32B32Sfloat,
                    .offset = offsetof(Vertex, pos),
                },
                {.location = IN_VERTEX_COLOUR,
@@ -203,7 +203,7 @@ class App
             .rasterizerDiscardEnable = vk::False,
             .polygonMode = vk::PolygonMode::eFill,
             .cullMode = vk::CullModeFlagBits::eNone,
-            .frontFace = vk::FrontFace::eClockwise,
+            .frontFace = vk::FrontFace::eCounterClockwise,
             .depthBiasEnable = vk::False,
             .lineWidth = 1.0f,
         };
@@ -417,13 +417,13 @@ class App
 
         {
             Vertex verts[] = {
-                {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}},  // 0
+                {{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}},  // 0
                 {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
-                {{-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},   // 2
+                {{-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},  // 2
                 {{-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 1.0f}},
-                {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},   // 4
+                {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},  // 4
                 {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f}},
-                {{1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f}},    // 6
+                {{1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f}},   // 6
                 {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},
             };
 
@@ -452,7 +452,7 @@ class App
             // clang-format off
             uint16_t indices[] =
             {
-                0, 2, 1, 
+                0, 2, 1,
                 1, 2, 3,
                 4, 6, 0,
                 0, 6, 2,
@@ -489,7 +489,7 @@ class App
 
         {
             mCamera = {
-                .eye = vec3{0.0f, 0.0f, 10.0f},
+                .eye = vec3{1.5f, 0.0f, 0.0f},
                 .center = vec3{0.0f, 0.0f, 0.0f},
                 .up = vec3{0.0f, 1.0f, 0.0f},
                 .fovY = 45.0f,
@@ -533,7 +533,8 @@ class App
 
     void drawFrame(uint32_t frameIndex)
     {
-        RenderCommand& renderCommand = mRenderCommands[frameIndex];
+        uint32_t modFrameIndex = frameIndex % MAX_FRAMES_IN_FLIGHT;
+        RenderCommand& renderCommand = mRenderCommands[modFrameIndex];
         vk::CommandBuffer commandBuffer = renderCommand.commandBuffer;
         glfwPollEvents();
         {
@@ -649,7 +650,13 @@ class App
             commandBuffer.pushConstants(mPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0,
                                         sizeof(PushConstants), &pc);
 
-            commandBuffer.drawIndexed(12, 1, 0, 3, 0);
+            //  int32_t dynamicOffset = static_cast<int32_t>(3u * ((frameIndex / 100u) % 6u));
+
+            // std::cout << "Drawing frame " << frameIndex << " (mod " << modFrameIndex
+            //           << ") with dynamic offset " << dynamicOffset << "...\n";
+            // commandBuffer.drawIndexed(3, 1, 0, dynamicOffset, 0);
+
+            commandBuffer.drawIndexed(6, 1, 12, 0, 0);
 
             commandBuffer.endRenderPass();
 
@@ -833,7 +840,7 @@ int main(void)
     while (!glfwWindowShouldClose(window.window()))
     {
         app.drawFrame(currentFrame);
-        currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+        currentFrame = (currentFrame + 1);
     }
 
     {
