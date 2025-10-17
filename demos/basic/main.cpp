@@ -783,11 +783,29 @@ class App
 
 }  // namespace
 
-int main(void)
+int main(const int argc, const char** argv)
 {
+#ifdef NDEBUG
+    bool useValidation = false;
+#else
+    bool useValidation = true;
+#endif
+
+    if (argc > 1)
+    {
+        std::string arg1 = argv[1];
+        if (arg1 == "--no-validation")
+        {
+            useValidation = false;
+        }
+        else if (arg1 == "--validation")
+        {
+            useValidation = true;
+        }
+    }
     Context ctx;
     {
-        vk::Result res = ctx.init();
+        vk::Result res = ctx.init(useValidation);
         if (res != vk::Result::eSuccess)
         {
             abort();

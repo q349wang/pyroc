@@ -5,6 +5,7 @@
 #include "util/log.h"
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 namespace pyroc::backend::vulkan
@@ -13,12 +14,6 @@ namespace pyroc::backend::vulkan
 namespace
 {
 constexpr char const* validationLayers[1] = {"VK_LAYER_KHRONOS_validation"};
-
-#ifdef NDEBUG
-constexpr bool enableValidationLayers = false;
-#else
-constexpr bool enableValidationLayers = true;
-#endif
 
 VKAPI_ATTR vk::Bool32 VKAPI_CALL
 debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
@@ -69,7 +64,7 @@ bool checkValidationLayerSupport()
     return true;
 }
 
-std::vector<const char*> getRequiredInstanceExtensions()
+std::vector<const char*> getRequiredInstanceExtensions(bool useValidation)
 {
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions;
@@ -77,7 +72,7 @@ std::vector<const char*> getRequiredInstanceExtensions()
 
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-    if (enableValidationLayers)
+    if (useValidation)
     {
         extensions.push_back(VK_EXT_LAYER_SETTINGS_EXTENSION_NAME);
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -207,7 +202,7 @@ bool isDeviceSuitable(vk::PhysicalDevice device)
 
 }  // namespace
 
-vk::Result Context::init()
+vk::Result Context::init(bool enableValidationLayers)
 {
     glfwInit();
 
@@ -222,7 +217,7 @@ vk::Result Context::init()
     const bool useValidation = enableValidationLayers && checkValidationLayerSupport();
     LOG_DEBUG("Using validation?: %s", (useValidation ? "TRUE" : "FALSE"));
 
-    auto extensions = getRequiredInstanceExtensions();
+    auto extensions = getRequiredInstanceExtensions(useValidation);
 
     {
         const vk::ValidationFeatureEnableEXT validationFeaturesEnabled[] = {

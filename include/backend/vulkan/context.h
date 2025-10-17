@@ -14,7 +14,7 @@ class Context
         uint32_t present = ~0u;
     };
 
-    vk::Result init();
+    vk::Result init(bool enableValidationLayers);
 
     void destroy();
 
