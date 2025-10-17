@@ -16,10 +16,10 @@ constexpr mat<4, 4, T> perspective(T fovYRad, T aspect, T nearPlane, T farPlane)
 
     result[1][1] = f;
 
-    result[2][2] = (farPlane + nearPlane) / (nearPlane - farPlane);
-    result[3][2] = (static_cast<T>(-2) * farPlane * nearPlane) / (nearPlane - farPlane);
+    result[2][2] = farPlane / (nearPlane - farPlane);
+    result[3][2] = -farPlane / (nearPlane - farPlane);
 
-    result[2][3] = static_cast<T>(-1);
+    result[2][3] = static_cast<T>(1);
 
     return result;
 }

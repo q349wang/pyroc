@@ -12,9 +12,10 @@ layout(push_constant) uniform constants{PUSH_CONSTANTS} pc;
 
 void main()
 {
-    vec4 modelPosition = pc.view * pc.model * vec4(inPosition, 1.0);
-    debugPrintfEXT("inPos %f %f %f modelPos %f %f %f\n", inPosition.x, inPosition.y, inPosition.z,
-                   modelPosition.x, modelPosition.y, modelPosition.z);
+    vec4 modelPosition = pc.projection * pc.view * pc.model * vec4(inPosition, 1.0);
+    // debugPrintfEXT("inPos %f %f %f modelPos %f %f %f %f\n", inPosition.x, inPosition.y,
+    //                inPosition.z, modelPosition.x, modelPosition.y, modelPosition.z,
+    //                modelPosition.w);
     gl_Position = modelPosition;
     fragColour = inColour;
 }

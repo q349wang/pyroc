@@ -5,8 +5,8 @@ namespace pyroc::core
 math::mat4 Camera::viewMatrix() const
 {
     const math::vec3 f = math::normalize(center - eye);
-    const math::vec3 s = math::normalize(math::cross(f, up));
-    const math::vec3 u = math::cross(s, f);
+    const math::vec3 s = math::normalize(math::cross(up, f));
+    const math::vec3 u = math::normalize(math::cross(s, f));
 
     math::mat4 result = math::mat4::identity();
     result[0][0] = s.x;
@@ -24,6 +24,13 @@ math::mat4 Camera::viewMatrix() const
     return result;
 }
 
+/*
+ * NDC X: -1 to 1
+ * NDC Y: -1 to 1
+ * NDC Z: 0 to 1
+ * RHS coordinate system
+ *Origin top left
+ */
 math::mat4 Camera::projectionMatrix() const
 {
     return math::perspective(math::radians(fovY), aspect, nearPlane, farPlane);

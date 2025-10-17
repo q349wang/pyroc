@@ -417,13 +417,13 @@ class App
 
         {
             Vertex verts[] = {
-                {{1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}},  // 0
+                {{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f}},  // 0
                 {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
-                {{-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},  // 2
+                {{-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},   // 2
                 {{-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 1.0f}},
-                {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},  // 4
+                {{1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},   // 4
                 {{1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f}},
-                {{1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f}},   // 6
+                {{1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f}},    // 6
                 {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},
             };
 
@@ -489,10 +489,10 @@ class App
 
         {
             mCamera = {
-                .eye = vec3{1.5f, 0.0f, 0.0f},
+                .eye = vec3{2.0f, 0.0f, 0.0f},
                 .center = vec3{0.0f, 0.0f, 0.0f},
-                .up = vec3{0.0f, 1.0f, 0.0f},
-                .fovY = 45.0f,
+                .up = vec3{0.0f, -1.0f, 0.0f},
+                .fovY = 120.0f,
                 .aspect = static_cast<float>(mSurface.extent.width)
                           / static_cast<float>(mSurface.extent.height),
                 .nearPlane = 0.1f,
@@ -642,6 +642,13 @@ class App
 
             commandBuffer.setScissor(0, 1, &scissor);
 
+            // if (frameIndex % 100 == 0)
+            // {
+            //     std::cout << "Frame " << frameIndex << "\n";
+            //     mCamera.eye.x += 0.001f;
+            //     mViewMatrix = mCamera.viewMatrix();
+            // }
+
             PushConstants pc = {
                 .model = mModelMatrix,
                 .view = mViewMatrix,
@@ -656,7 +663,7 @@ class App
             //           << ") with dynamic offset " << dynamicOffset << "...\n";
             // commandBuffer.drawIndexed(3, 1, 0, dynamicOffset, 0);
 
-            commandBuffer.drawIndexed(6, 1, 12, 0, 0);
+            commandBuffer.drawIndexed(36, 1, 0, 0, 0);
 
             commandBuffer.endRenderPass();
 

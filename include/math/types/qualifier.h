@@ -10,8 +10,8 @@ union vec;
 template <size_t N, size_t M, typename T>
 union mat;
 
-template <size_t L, typename T>
-union qua;
+template <typename T>
+union quat;
 
 namespace detail
 {
