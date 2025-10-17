@@ -5,7 +5,7 @@ namespace pyroc::core
 math::mat4 Camera::viewMatrix() const
 {
     const math::vec3 f = math::normalize(center - eye);
-    const math::vec3 s = math::normalize(math::cross(up, f));
+    const math::vec3 s = math::normalize(math::cross(f, up));
     const math::vec3 u = math::normalize(math::cross(s, f));
 
     math::mat4 result = math::mat4::identity();

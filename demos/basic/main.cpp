@@ -201,7 +201,7 @@ class App
         const vk::PipelineRasterizationStateCreateInfo rasterInfo = {
             .depthClampEnable = vk::False,
             .rasterizerDiscardEnable = vk::False,
-            .polygonMode = vk::PolygonMode::eFill,
+            .polygonMode = vk::PolygonMode::eLine,
             .cullMode = vk::CullModeFlagBits::eNone,
             .frontFace = vk::FrontFace::eCounterClockwise,
             .depthBiasEnable = vk::False,
@@ -489,10 +489,10 @@ class App
 
         {
             mCamera = {
-                .eye = vec3{2.0f, 0.0f, 0.0f},
+                .eye = vec3{5.0f, 5.0f, 5.0f},
                 .center = vec3{0.0f, 0.0f, 0.0f},
-                .up = vec3{0.0f, -1.0f, 0.0f},
-                .fovY = 120.0f,
+                .up = vec3{0.0f, 1.0f, 0.0f},
+                .fovY = 45.0f,
                 .aspect = static_cast<float>(mSurface.extent.width)
                           / static_cast<float>(mSurface.extent.height),
                 .nearPlane = 0.1f,
@@ -771,12 +771,7 @@ class App
     Buffer mIndexBuffer;
 
     pyroc::core::Camera mCamera;
-    mat4 mModelMatrix = {
-        vec4{1.0f, 0.0f, 0.0f, 0.0f},
-        vec4{0.0f, 1.0f, 0.0f, 0.0f},
-        vec4{0.0f, 0.0f, 1.0f, 0.0f},
-        vec4{0.0f, 0.0f, 0.0f, 1.0f},
-    };
+    mat4 mModelMatrix = mat4::identity();
     mat4 mViewMatrix = mat4::identity();
     mat4 mProjMatrix = mat4::identity();
 };
