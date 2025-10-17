@@ -590,7 +590,13 @@ class App
         }
 
         {
-            commandBuffer.reset();
+            {
+                const auto res = commandBuffer.reset();
+                if (res != vk::Result::eSuccess)
+                {
+                    abort();
+                }
+            }
 
             {
                 const vk::CommandBufferBeginInfo beginInfo = {};

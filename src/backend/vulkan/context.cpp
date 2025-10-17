@@ -20,10 +20,10 @@ constexpr bool enableValidationLayers = false;
 constexpr bool enableValidationLayers = true;
 #endif
 
-VKAPI_ATTR VkBool32 VKAPI_CALL
-debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
-              VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
-              const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* /*pUserData*/)
+VKAPI_ATTR vk::Bool32 VKAPI_CALL
+debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
+              vk::DebugUtilsMessageTypeFlagsEXT /*messageType*/,
+              const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* /*pUserData*/)
 {
     LOG_DEBUG("Validation layer: %s", pCallbackData->pMessage);
 
@@ -275,7 +275,8 @@ vk::Result Context::init()
         };
 
         auto [res, debugMessenger] = mInstance.createDebugUtilsMessengerEXT(
-            debugCreateInfo, nullptr, vk::DispatchLoaderDynamic{mInstance, vkGetInstanceProcAddr});
+            debugCreateInfo, nullptr,
+            vk::detail::DispatchLoaderDynamic{mInstance, vkGetInstanceProcAddr});
         if (res != vk::Result::eSuccess)
         {
             return res;
@@ -338,6 +339,8 @@ vk::Result Context::init()
         const vk::DeviceCreateInfo deviceCreateInfo = {
             .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
             .pQueueCreateInfos = queueCreateInfos.data(),
+            .enabledLayerCount = 0,
+            .ppEnabledLayerNames = nullptr,
             .enabledExtensionCount = static_cast<uint32_t>(requiredExts.size()),
             .ppEnabledExtensionNames = requiredExts.data(),
             .pEnabledFeatures = &deviceFeatures,
