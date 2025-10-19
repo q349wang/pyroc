@@ -489,7 +489,7 @@ class App
 
         {
             mCamera = {
-                .eye = vec3{5.0f, 5.0f, 5.0f},
+                .eye = vec3{5.0f, 0.0f, 5.0f},
                 .center = vec3{0.0f, 0.0f, 0.0f},
                 .up = vec3{0.0f, 1.0f, 0.0f},
                 .fovY = 45.0f,
@@ -648,12 +648,14 @@ class App
 
             commandBuffer.setScissor(0, 1, &scissor);
 
-            // if (frameIndex % 100 == 0)
-            // {
-            //     std::cout << "Frame " << frameIndex << "\n";
-            //     mCamera.eye.x += 0.001f;
-            //     mViewMatrix = mCamera.viewMatrix();
-            // }
+            if (frameIndex % 100 == 0)
+            {
+                mModelMatrix[0][0] = std::cos(mRotationAngle);
+                mModelMatrix[0][2] = -std::sin(mRotationAngle);
+                mModelMatrix[2][0] = std::sin(mRotationAngle);
+                mModelMatrix[2][2] = std::cos(mRotationAngle);
+                mRotationAngle += 0.1f;
+            }
 
             PushConstants pc = {
                 .model = mModelMatrix,
@@ -769,6 +771,8 @@ class App
 
     Buffer mVertexBuffer;
     Buffer mIndexBuffer;
+
+    float mRotationAngle = 0.0f;
 
     pyroc::core::Camera mCamera;
     mat4 mModelMatrix = mat4::identity();
